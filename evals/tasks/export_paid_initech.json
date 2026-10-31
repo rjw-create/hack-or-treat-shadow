@@ -1,0 +1,10 @@
+{
+  "task": "Export the paid Initech invoice",
+  "steps": [
+    {"intent": "Open the invoice list", "action": "goto", "value": "http://localhost:8000/demo_site/invoices.html", "expected": "The Invoices page with a table of invoices"},
+    {"intent": "Search for the customer", "action": "fill", "target": {"role": "searchbox", "name": "Search customer"}, "value": "Initech", "expected": "Only Initech invoices are listed"},
+    {"intent": "Show only paid invoices", "action": "select", "target": {"role": "combobox", "name": "Status"}, "value": "Paid", "expected": "Only paid Initech invoices are listed"},
+    {"intent": "Pick the Initech invoice", "action": "click", "target": {"role": "checkbox", "name": "Select INV-1043"}, "expected": "INV-1043 is checked"},
+    {"intent": "Export the selected invoice", "action": "click", "target": {"role": "button", "name": "Export selected"}, "expected": "A message says 1 invoice INV-1043 was exported"}
+  ]
+}
