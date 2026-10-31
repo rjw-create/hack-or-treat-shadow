@@ -122,17 +122,16 @@ run folder per run (path printed as `Run folders go to ...`) that `viewer.report
 `--layouts` pick a subset, for example `--tasks export_invoice --layouts a b e`.
 
 ## Results
-First real run, 2026-10-31: `gemma4:e4b` as planner and checker on a laptop CPU, task `export_invoice`, one run
-on each of layouts a, b and e. Three runs are an anecdote, not a measurement. Details and causes:
-[`results/2026-10-31-gemma-run-notes.md`](results/2026-10-31-gemma-run-notes.md); raw run logs:
-`results/2026-10-31-133731-gemma-runs.jsonl`.
+Real runs on 2026-10-31: `gemma4:e4b` as planner and checker on a laptop CPU, task `export_invoice`, one run on
+each of layouts a, b and e. One run per layout shows the pipeline working end to end; it is not a success rate.
+Details: [`results/2026-10-31-gemma-run-notes.md`](results/2026-10-31-gemma-run-notes.md).
 
-- **Task success** (runner ok and correct end page): layouts a and e yes, layout b no.
-- **Layout e:** Gemma 4 repaired the step by changing its action, from `select` on the Status dropdown to `click`
-  on the "Unpaid" radio button, and the task finished.
-- **Layout b:** the repair to "Download selected" was right and the export happened, but the screenshot checker
-  said "not ok" while its own reason said the page matched, so the runner gave up. A fix and a re-test are in progress.
-- **Time per step:** about 20 to 40 s when nothing goes wrong, almost all of it model time.
+- **Task success** (runner ok and correct end page): 3 of 3, on layouts a, b and e.
+- **Repairs:** 2 of 2 worked on the first try. Layout b: "Export selected" became "Download selected". Layout e:
+  Gemma 4 changed the step's action, from `select` on the Status dropdown to `click` on the "Unpaid" radio button.
+- **Time:** 30.2 s per step on average, almost all of it model time; a 5-step task took 2.0 to 2.9 minutes.
+- **Earlier run:** before Core's checker and timeout fixes, layout b's repair was also right, but the screenshot
+  checker contradicted itself and the runner gave up. The notes compare both runs.
 
 The `fake` files in `results/` are pipeline tests; they say nothing about how well Gemma 4 plans, checks or repairs.
 
