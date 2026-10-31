@@ -84,38 +84,29 @@ patched plan is also written out as a plain Playwright script, so you can read w
 | The video will not play | Open the report tab and walk through it step by step; it shows the same run. |
 | Running short of time | Skip the layout a segment (1:10 to 1:30). |
 
-## Recording the backup video (final hour)
-Needs Jackson's go-ahead for real model runs (shared GPU). One task, layouts a, b and e, run through Proof's eval
-runner with its `--show` flag, so the same run gives the video, the reports and the first real results.
+## Making the backup video (automatic, no screen recording)
+The browser part is recorded by Playwright during the run (Proof's `--video` flag, one `.webm` per run in each
+exec folder). The video is then cut together with ffmpeg in this worktree. No one has to start a screen recorder.
 
-### Tools (built into Windows 11, nothing to install)
-- Record: Snipping Tool's screen recording (Win+Shift+R, drag over the whole screen, then Start). Game Bar
-  (Win+Alt+R) records only one app window, so it would miss either the terminal or the browser.
-- Edit: Clipchamp, to cut the long waits or speed them up, and to add a text label with the speed (for example "8x").
+### Rules while the real run is going
+From Proof's start message until it reports done: no browser checks, `check.sh`, ffmpeg encoding or other
+CPU-heavy work in any other session. CPU contention caused the timeouts in the first layout b run.
 
-### Window layout (1920 x 1080 screen, or whatever the projector uses)
-- Left half: the terminal, font size 16 or larger, so the step log and repair lines are readable in the video.
-- Right half: the browser window Playwright opens. It appears when the run starts; drag it to the right half then.
-- Hide the taskbar clock and notifications (Focus on); close anything showing names, email or chat.
+### Steps (after Proof reports done)
+1. Copy each run's exec folder (run.json, shots/, the .webm) from Proof's worktree into this worktree's git-ignored
+   `runs/real/`. Only read Proof's worktree; never write there.
+2. Make a report per run: `.venv\Scripts\python -m viewer.report runs\real\<exec folder>`.
+3. Build the video with ffmpeg in a git-ignored folder (`runs/video/`), keeping it under about 2 minutes:
+   - A title card per segment, taken from the run report: layout, step, check type (text or screenshot), and
+     the repair's before and after step.
+   - Long model waits sped up with `setpts`, each with an on-screen label such as "model checking, 4x speed".
+     The repair moment itself stays at normal speed.
+   - Order: layout a (short, sped up), then the repair run (layout e, or b if the re-test passes), then a still of
+     the report's repaired step with the target box.
+4. Do not commit the video. Put its local path in `2026-10-31-submission.md` for Jackson to upload, and use it
+   in the demo's browser tab 1.
+5. Fill in the "Measured" line at the top of this file from the run's run.json files.
 
-### Steps
-1. Terminal 1: `.venv\Scripts\python -m http.server 8000` if the eval runner needs it (check Proof's `--show` notes).
-2. Terminal 2: set `SHADOW_PLANNER_MODEL` and `SHADOW_CHECKER_MODEL`, then warm up each model so the first recorded
-   check does not include load time (Ollama unloads an idle model after 5 minutes by default, so start recording soon after):
-   ```
-   ollama run <checker tag> "Reply OK"
-   ```
-   ```
-   ollama run <planner tag> "Reply OK"
-   ```
-3. Start the Snipping Tool recording, then start the eval run with `--show` for one task and layouts a, b and e.
-4. Stop the recording when the run prints its summary.
-5. For each exec folder the run printed, make the report (PowerShell, one folder per command):
-   ```
-   .venv\Scripts\python -m viewer.report <exec folder>
-   ```
-   Open the layout e `report.html` in a browser tab; that is tab 2 for the demo.
-6. Copy the time per step and run times from the run's printed output into the "Measured" line at the top of this file.
-7. In Clipchamp: keep the record segment and the step-3 repair of layout e at normal speed, speed up or cut the
-   rest, and keep a visible speed label on every sped-up part. Export at 1080p.
-8. Save the video outside the repo and do not commit it; put its link in `2026-10-31-submission.md`.
+### Needs
+- A full ffmpeg build with `setpts`, `drawtext` and `concat`. Not installed yet: Playwright's bundled ffmpeg only
+  has what screencasts need (no `setpts`, `drawtext` or `concat`). Installing one needs Jackson's OK.
