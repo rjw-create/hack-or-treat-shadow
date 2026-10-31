@@ -158,9 +158,26 @@ def summarize(records):
     }
 
 
-def run_suite(mode, runs, out_dir, suite_path=SUITE):
-    """Run the whole suite; returns (records, summary, jsonl_path, summary_path)."""
-    suite = json.loads(suite_path.read_text(encoding="utf-8"))
+def select(suite, tasks=None, layouts=None):
+    """Keep only the named tasks and layouts (None keeps all); unknown names are an error, not a silent no-op."""
+    known_tasks = {t["id"] for t in suite["tasks"]}
+    known_layouts = {lay for t in suite["tasks"] for lay in t["layouts"]}
+    unknown = sorted(set(tasks or ()) - known_tasks) + sorted(set(layouts or ()) - known_layouts)
+    if unknown:
+        raise ValueError(f"not in the suite: {', '.join(unknown)}")
+    picked = []
+    for task in suite["tasks"]:
+        if tasks and task["id"] not in tasks:
+            continue
+        kept = [lay for lay in task["layouts"] if not layouts or lay in layouts]
+        if kept:
+            picked.append({**task, "layouts": kept})
+    return {**suite, "tasks": picked}
+
+
+def run_suite(mode, runs, out_dir, suite_path=SUITE, tasks=None, layouts=None):
+    """Run the suite, or the chosen tasks/layouts of it; returns (records, summary, jsonl_path, summary_path)."""
+    suite = select(json.loads(suite_path.read_text(encoding="utf-8")), tasks, layouts)
     if mode == "fake":
         models = {"planner": "fake", "checker": "fake"}
     else:
@@ -200,7 +217,7 @@ def run_suite(mode, runs, out_dir, suite_path=SUITE):
     server.server_close()
 
     summary = {"mode": mode, "note": note, "models": models, "runs_per_layout": runs,
-               "raw": jsonl_path.name, **summarize(records)}
+               "tasks_filter": tasks, "layouts_filter": layouts, "raw": jsonl_path.name, **summarize(records)}
     summary_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     return records, summary, jsonl_path, summary_path
 
@@ -220,10 +237,13 @@ def main():
     parser.add_argument("--mode", choices=["fake", "gemma"], required=True)
     parser.add_argument("--runs", type=int, default=1, help="runs per task and layout")
     parser.add_argument("--out", type=Path, default=RESULTS)
+    parser.add_argument("--tasks", nargs="+", help="task ids to run (default: all)")
+    parser.add_argument("--layouts", nargs="+", help="layout ids to run (default: each task's own list)")
     args = parser.parse_args()
     try:
-        _, summary, jsonl_path, summary_path = run_suite(args.mode, args.runs, args.out)
-    except llm.LLMError as e:
+        _, summary, jsonl_path, summary_path = run_suite(args.mode, args.runs, args.out,
+                                                         tasks=args.tasks, layouts=args.layouts)
+    except (llm.LLMError, ValueError) as e:
         print(e, file=sys.stderr)
         return 2
     print_table(summary)
