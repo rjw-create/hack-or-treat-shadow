@@ -1,0 +1,50 @@
+"""Viewer report tests: model-written text is escaped and screenshot paths cannot leave the exec folder."""
+import json
+import unittest
+from pathlib import Path
+
+from viewer.report import render
+
+FIXTURES = Path(__file__).resolve().parent.parent / "viewer" / "fixtures"
+
+
+def load(name):
+    folder = FIXTURES / name
+    return json.loads((folder / "run.json").read_text(encoding="utf-8")), folder
+
+
+class ReportTest(unittest.TestCase):
+    def test_repaired_run_shows_every_step_and_the_repair(self):
+        run, folder = load("repaired_run")
+        page = render(run, folder)
+        for i in range(1, 6):
+            self.assertIn(f'id="step-{i}"', page)
+        self.assertIn("Run passed", page)
+        self.assertIn("<del>click button &quot;Export selected&quot;</del>", page)
+        self.assertIn("<ins>click button &quot;Download selected&quot;</ins>", page)
+        self.assertIn('src="shots/005-2.png"', page)
+
+    def test_model_text_is_escaped(self):
+        run, folder = load("failed_run")
+        page = render(run, folder)
+        self.assertNotIn("<script>alert", page)
+        self.assertNotIn("<img src=x", page)
+        self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", page)
+
+    def test_screenshot_paths_outside_shots_are_dropped(self):
+        run, folder = load("failed_run")
+        page = render(run, folder)
+        self.assertNotIn("secret.png", page)
+        self.assertNotIn('href="javascript:', page)
+
+    def test_failed_run_states(self):
+        run, folder = load("failed_run")
+        page = render(run, folder)
+        self.assertIn("Run failed at step 2", page)
+        self.assertIn("rejected (failed validation)", page)
+        self.assertIn("Screenshot missing", page)
+        self.assertIn("This step was not reached.", page)
+
+
+if __name__ == "__main__":
+    unittest.main()
