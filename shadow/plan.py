@@ -74,9 +74,14 @@ def make_plan(run_dir, chat=llm.chat_json):
 
 
 def main():
+    run_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else None
+    if run_dir is None or not (run_dir / "events.jsonl").is_file():
+        print(f"No recording at {run_dir or '(no folder given)'}: expected events.jsonl inside it. "
+              "Record one with: python -m shadow.record http://localhost:8000/demo_site/invoices.html")
+        return 2
     try:
         llm.preflight(["planner"])
-        plan = make_plan(Path(sys.argv[1]))
+        plan = make_plan(run_dir)
     except (llm.LLMError, PlanError) as e:
         print(f"No plan: {e}")
         return 2

@@ -13,8 +13,13 @@ from playwright.sync_api import sync_playwright
 from shadow.run import run_plan, save_run, with_layout
 
 ROOT = Path(__file__).resolve().parent.parent
-# The demo page is local and instant, so a short wait is enough to see that an element is missing.
-FAST_TIMEOUT_MS = 500
+# Shorter than the runner's 3000 ms so fake repairs start sooner. 500 ms was too tight: with a model
+# running on the same CPU, a normal page load on layout a timed out and failed the test.
+FAST_TIMEOUT_MS = 1500
+
+
+def action_errors(result):
+    return [f"step {s['index']}: {a['error']}" for s in result["log"]["steps"] for a in s["attempts"] if a["error"]]
 PLAN = json.loads((ROOT / "tests" / "fixtures" / "plan_export.json").read_text(encoding="utf-8"))
 
 
@@ -73,7 +78,7 @@ class RunnerTest(unittest.TestCase):
 
     def test_layout_a_runs_without_repairs(self):
         result, status = self.run_layout("a", repair=useless_repair)
-        self.assertTrue(result["ok"])
+        self.assertTrue(result["ok"], action_errors(result))
         self.assertEqual(result["repairs"], [])
         self.assertEqual(status, "Exported 1 invoice: INV-1042")
 
