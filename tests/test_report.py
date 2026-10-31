@@ -57,6 +57,14 @@ class ReportTest(unittest.TestCase):
         failed_page = render(*load("failed_run"))
         self.assertIn('Check <span class="bad">failed</span>', failed_page)
 
+    def test_repair_that_changes_nothing_is_not_shown_as_a_change(self):
+        run, folder = load("repaired_run")
+        attempt = run["steps"][4]["attempts"][0]
+        attempt["repair"]["new_step"] = attempt["step"]
+        page = render(run, folder)
+        self.assertIn("No change to the step", page)
+        self.assertNotIn("<del>", page)
+
     def test_missing_recording_is_not_shown_as_none(self):
         run, folder = load("failed_run")
         self.assertNotIn("of recording", render(run, folder))
