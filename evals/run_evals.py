@@ -7,19 +7,17 @@ Usage (from the repo root):
 Fake mode is a pipeline test only: the checker always says ok and the repairer is an oracle that
 already knows the answer. Its numbers say nothing about Gemma's ability.
 
-Metrics are built from the run_plan() return value and its log lines, because run.json is not
-written by the runner yet. Switch to run.json once Core ships it.
+Metrics come from the runner's run.json (run_plan() returns it as result["log"]); each raw line
+embeds that whole run log so nothing is lost.
 """
 import argparse
 import copy
 import functools
 import http.server
 import json
-import re
 import statistics
 import sys
 import threading
-import time
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse, urlunparse
@@ -36,8 +34,6 @@ RESULTS = ROOT / "results"
 END_STATE_TIMEOUT_MS = 3000
 FAKE_NOTE = ("PIPELINE TEST, NOT A MODEL RESULT: the fake checker always says ok and the fake repairer "
              "knows the answer. These numbers say nothing about Gemma's ability.")
-# run_plan logs "[i/n] intent" at the start of every attempt; this is how steps are timed.
-STEP_START = re.compile(r"^\[(\d+)/\d+\]")
 
 
 class QuietHandler(http.server.SimpleHTTPRequestHandler):
@@ -66,15 +62,20 @@ def always_ok(page, step):
     return True, "fake check"
 
 
-def oracle_repair(renames):
-    """Fake repairer that knows which target names changed in this layout."""
+def oracle_repair(fixes):
+    """Fake repairer with the answer key: fixes maps an old target name to step fields to override
+    (null removes a field), so it can also change the action, e.g. a dropdown that became radios."""
     def repair(page, step, problem):
         fixed = copy.deepcopy(step)
-        target = fixed.get("target")
-        if target and target.get("name") in renames:
-            target["name"] = renames[target["name"]]
-            return fixed, f"Oracle: {step['target']['name']} is now {target['name']}."
-        return fixed, "Oracle has no fix for this step."
+        name = (step.get("target") or {}).get("name")
+        if name not in fixes:
+            return fixed, "Oracle has no fix for this step."
+        for key, value in fixes[name].items():
+            if value is None:
+                fixed.pop(key, None)
+            else:
+                fixed[key] = copy.deepcopy(value)
+        return fixed, f"Oracle: {name} is now {fixed['target']['name']}."
     return repair
 
 
@@ -87,66 +88,46 @@ def end_state_ok(page, done_when):
     return (text or "").strip() == done_when["text"]
 
 
-def run_one(browser, plan, check, repair, done_when):
-    """Run one plan in a fresh page and return its raw metrics."""
-    marks = []         # (step index, perf_counter) each time the runner starts an attempt
-    repair_calls = {}  # step index -> repairs requested for it
-
-    def log(msg):
-        m = STEP_START.match(msg)
-        if m:
-            marks.append((int(m.group(1)), time.perf_counter()))
-
-    def counted_repair(page, step, problem):
-        i = marks[-1][0]
-        repair_calls[i] = repair_calls.get(i, 0) + 1
-        return repair(page, step, problem)
-
+def run_one(browser, plan, check, repair, done_when, run_info):
+    """Run one plan in a fresh page; returns metrics plus the runner's full run.json as run_log."""
     page = browser.new_page()
     error = None
-    t0 = time.perf_counter()
     try:
-        result = run_plan(page, plan, check=check, repair=counted_repair, log=log)
+        result = run_plan(page, plan, check=check, repair=repair, log=lambda msg: None, run_info=run_info)
     except Exception as e:  # e.g. Ollama down or bad JSON: end this run, keep the suite going
         first_line = str(e).splitlines()[0] if str(e) else ""
         error = f"{type(e).__name__}: {first_line}"
-        result = {"ok": False, "repairs": [], "failed_step": marks[-1][0] if marks else 1}
-    t_end = time.perf_counter()
+        result = None
     end_ok = end_state_ok(page, done_when)
     page.close()
 
-    starts, attempts = {}, {}
-    for i, t in marks:
-        starts.setdefault(i, t)
-        attempts[i] = attempts.get(i, 0) + 1
-    order = sorted(starts)
-    step_times = []
-    for n, i in enumerate(order):
-        end = starts[order[n + 1]] if n + 1 < len(order) else t_end
-        step_times.append(round(end - starts[i], 3))
+    if result is None:
+        # run_plan raised before building its log, so there are no step-level numbers for this run.
+        return {"ok": False, "end_state_ok": end_ok, "task_success": False, "failed_step": None, "error": error,
+                "steps_total": len(plan["steps"]), "steps_run": 0, "steps_passed": 0, "attempts": 0,
+                "attempts_per_step": [], "repairs_attempted": 0, "repairs_succeeded": 0, "duration_s": None,
+                "step_times_s": [], "time_per_step_s": None, "run_log": None}
 
-    steps_total = len(plan["steps"])
-    steps_passed = steps_total if result["ok"] else result["failed_step"] - 1
-    # A step that passed after k repairs had one successful repair (the last); a failed step had none.
-    repairs_succeeded = sum(1 for i in repair_calls if i <= steps_passed)
+    run_log = result["log"]
+    ran = [s for s in run_log["steps"] if s["status"] != "not_run"]
+    summary = run_log["summary"]
     return {
-        "ok": result["ok"],
+        "ok": run_log["ok"],
         "end_state_ok": end_ok,
-        "task_success": result["ok"] and end_ok,
-        "failed_step": result["failed_step"],
+        "task_success": run_log["ok"] and end_ok,
+        "failed_step": run_log["failed_step"],
         "error": error,
-        "steps_total": steps_total,
-        "steps_run": len(order),
-        "steps_passed": steps_passed,
-        "attempts": len(marks),
-        "attempts_per_step": [attempts[i] for i in order],
-        "repairs_attempted": sum(repair_calls.values()),
-        "repairs_accepted": len(result["repairs"]),
-        "repairs_succeeded": repairs_succeeded,
-        "duration_s": round(t_end - t0, 3),
-        "step_times_s": step_times,
-        "time_per_step_s": round(statistics.mean(step_times), 3) if step_times else None,
-        "repairs": result["repairs"],
+        "steps_total": summary["steps_total"],
+        "steps_run": len(ran),
+        "steps_passed": summary["steps_passed"],
+        "attempts": sum(len(s["attempts"]) for s in ran),
+        "attempts_per_step": [len(s["attempts"]) for s in ran],
+        "repairs_attempted": summary["repairs_attempted"],
+        "repairs_succeeded": summary["repairs_succeeded"],
+        "duration_s": run_log["duration_s"],
+        "step_times_s": [s["time_s"] for s in ran],
+        "time_per_step_s": summary["time_per_step_s"],
+        "run_log": run_log,
     }
 
 
@@ -201,14 +182,15 @@ def run_suite(mode, runs, out_dir, suite_path=SUITE):
             for layout in task["layouts"]:
                 plan = with_layout(point_at(base, port), layout)
                 if mode == "fake":
-                    check, repair = always_ok, oracle_repair(task.get("oracle_renames", {}).get(layout, {}))
+                    check, repair = always_ok, oracle_repair(task.get("oracle_fixes", {}).get(layout, {}))
                 else:
                     check, repair = model_check, model_repair
                 for run in range(1, runs + 1):
                     started_at = datetime.now().astimezone().isoformat(timespec="seconds")
+                    run_info = {"layout": layout, "models": models}
                     record = {"mode": mode, "note": note, "task": task["id"], "layout": layout, "run": run,
                               "models": models, "started_at": started_at,
-                              **run_one(browser, plan, check, repair, task["done_when"])}
+                              **run_one(browser, plan, check, repair, task["done_when"], run_info)}
                     records.append(record)
                     # Written line by line so a crash in a long model run keeps the finished runs.
                     out.write(json.dumps(record) + "\n")
@@ -227,9 +209,9 @@ def print_table(summary):
     def fmt(v):
         return "-" if v is None else str(v)
     print(summary["note"])
-    print(f"{'task':<18}{'layout':<8}{'runs':>5}{'success':>9}{'repair ok':>11}{'steps/task':>12}{'s/step':>9}")
+    print(f"{'task':<24}{'layout':<8}{'runs':>5}{'success':>9}{'repair ok':>11}{'steps/task':>12}{'s/step':>9}")
     for row in summary["by_task_layout"] + [{"task": "ALL", "layout": "", **summary["overall"]}]:
-        print(f"{row['task']:<18}{row['layout']:<8}{row['runs']:>5}{fmt(row['task_success_rate']):>9}"
+        print(f"{row['task']:<24}{row['layout']:<8}{row['runs']:>5}{fmt(row['task_success_rate']):>9}"
               f"{fmt(row['repair_success_rate']):>11}{fmt(row['steps_per_task']):>12}{fmt(row['time_per_step_s']):>9}")
 
 

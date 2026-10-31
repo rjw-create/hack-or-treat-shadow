@@ -66,6 +66,27 @@ class FakeSuiteTest(unittest.TestCase):
         self.assertEqual((r["repairs_attempted"], r["repairs_succeeded"]), (1, 1))
         self.assertEqual(r["attempts_per_step"], [1, 1, 1, 1, 2])
 
+    def test_every_task_and_layout_succeeds_with_the_oracle(self):
+        # Proves the suite file itself is right: each layout's answer key really fixes that layout.
+        self.assertEqual(len(self.records), 15)
+        failed = [(r["task"], r["layout"]) for r in self.records if not r["task_success"]]
+        self.assertEqual(failed, [])
+
+    def test_layout_e_repair_switches_dropdown_to_radio(self):
+        step3 = self.by_layout("e")["run_log"]["steps"][2]
+        self.assertEqual(step3["status"], "repaired")
+        new_step = step3["attempts"][0]["repair"]["new_step"]
+        self.assertEqual(new_step["action"], "click")
+        self.assertEqual(new_step["target"], {"role": "radio", "name": "Unpaid"})
+        self.assertNotIn("value", new_step)
+
+    def test_raw_line_embeds_the_run_log(self):
+        log = self.by_layout("b")["run_log"]
+        self.assertEqual(log["schema_version"], 1)
+        self.assertEqual(log["layout"], "b")
+        self.assertEqual(log["models"], {"planner": "fake", "checker": "fake"})
+        self.assertEqual(log["summary"]["repairs_succeeded"], 1)
+
     def test_fake_results_are_labelled_as_pipeline_tests(self):
         self.assertTrue(all(r["note"] == FAKE_NOTE and r["models"]["checker"] == "fake" for r in self.records))
         saved = json.loads(self.summary_path.read_text(encoding="utf-8"))
