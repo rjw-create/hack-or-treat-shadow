@@ -27,28 +27,55 @@ py -3.11 -m venv .venv
 ```
 .venv\Scripts\python -m playwright install chromium
 ```
-Install Ollama, pull the Gemma 4 models, then set the tags you pulled:
+On Windows PowerShell 5.1, pip's "new release available" notice can show up in red. It is harmless.
+
+Install [Ollama](https://ollama.com), then pull the model. Shadow was tested with `gemma4:e4b` as both planner
+and checker:
 ```
-$env:SHADOW_PLANNER_MODEL = "<planner tag from ollama list>"; $env:SHADOW_CHECKER_MODEL = "<checker tag>"
+ollama pull gemma4:e4b
 ```
 
 ## Demo
-Serve the fake invoice app from the project folder:
+Terminal 1, from the project folder: serve the fake invoice app and leave it running.
 ```
 .venv\Scripts\python -m http.server 8000
 ```
-Then, in a second terminal:
+Terminal 2, from the project folder. Set the model tags **in this terminal**: `$env:` variables only exist in
+the terminal that set them.
+```
+$env:SHADOW_PLANNER_MODEL = "gemma4:e4b"; $env:SHADOW_CHECKER_MODEL = "gemma4:e4b"
+```
+Check the setup and load the model now, so the first step isn't slow. It prints `Ready: loaded ...`, or one line
+saying what to fix:
+```
+.venv\Scripts\python -m shadow.warmup
+```
+Record the task. Do it in the browser window that opens, then close the window. The last line reads
+`Saved N events to runs\<recording id>`; use that folder name below.
 ```
 .venv\Scripts\python -m shadow.record http://localhost:8000/demo_site/invoices.html
 ```
 ```
-.venv\Scripts\python -m shadow.plan runs\<run id>
+.venv\Scripts\python -m shadow.plan runs\<recording id>
 ```
 ```
-.venv\Scripts\python -m shadow.run runs\<run id>\plan.json --layout b
+.venv\Scripts\python -m shadow.run runs\<recording id>\plan.json --layout b
 ```
 `--layout b` moves the export button and renames it to "Download selected", so the recorded step fails and
-has to be repaired.
+has to be repaired. The run ends with `Run log: runs\<recording id>\exec\<exec id>\run.json`.
+
+### Demo without recording first
+Use the example plan instead. Copy it into `runs\` (git-ignored) rather than running it in place, because the
+runner writes its results next to the plan. Same terminal 2, with the model variables set:
+```
+New-Item -ItemType Directory -Force runs\demo
+```
+```
+Copy-Item tests\fixtures\plan_export.json runs\demo\plan.json
+```
+```
+.venv\Scripts\python -m shadow.run runs\demo\plan.json --layout b
+```
 
 ### Layout variants
 The demo page reads `?layout=<id>` (the runner adds it from `--layout`). A missing or unknown id gives the normal
@@ -63,15 +90,22 @@ layout. Each variant breaks a different kind of locator:
 | `e` | Status dropdown replaced by radio buttons | select combobox "Status"; the repair has to change the action to click radio "Unpaid" |
 
 ### Run report
-Each run writes `runs\<run id>\exec\<exec id>\run.json` (format in `docs/interface.md`). Turn it into a page:
+Each run writes `run.json` (format in `docs/interface.md`) in the folder named on its `Run log:` line. Pass that
+folder, without `\run.json`, to the viewer:
 ```
-.venv\Scripts\python -m viewer.report runs\<run id>\exec\<exec id>
+.venv\Scripts\python -m viewer.report runs\<recording id>\exec\<exec id>
 ```
 This writes `report.html` in the same folder; open it straight from disk. It shows a summary, then each step with
 its screenshot, a box around the element the step acted on, the checker's verdict (labelled text or screenshot
-check) and the time taken. A repaired
-step shows the planner's explanation, the old target next to the new one, and the failed and repaired screenshots
-side by side. All model-written text is escaped, and the page has no JavaScript.
+check) and the time taken. A repaired step shows the planner's explanation, the old target next to the new one,
+and the failed and repaired screenshots side by side. All model-written text is escaped, and the page has no
+JavaScript.
+
+To see a report without a model, use the hand-made example run, then open
+`viewer\fixtures\repaired_run\report.html`:
+```
+.venv\Scripts\python -m viewer.report viewer\fixtures\repaired_run
+```
 
 ## Evals
 `evals/run_evals.py` runs every task in `evals/suite.json` on layouts `a` to `e` and writes raw results and a
@@ -83,6 +117,9 @@ summary to `results/`:
 .venv\Scripts\python -m evals.run_evals --mode gemma --runs 3
 ```
 `--mode fake` is a pipeline test: its checker always says ok and its repairer already knows the answer.
+Evals write only `results\` by default. Add `--show` for a visible browser, the runner's log on the console, and a
+run folder per run (path printed as `Run folders go to ...`) that `viewer.report` can read. `--tasks` and
+`--layouts` pick a subset, for example `--tasks export_invoice --layouts a b e`.
 
 ## Results
 No results from Gemma 4 yet. The files in `results/` so far are fake-mode pipeline tests; they show the runner,
