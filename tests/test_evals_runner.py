@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from evals.run_evals import FAKE_NOTE, aggregate, run_suite
+from evals.run_evals import FAKE_NOTE, aggregate, run_suite, select
 
 
 def record(**overrides):
@@ -32,6 +32,21 @@ class AggregateTest(unittest.TestCase):
 
     def test_no_repairs_gives_no_repair_rate(self):
         self.assertIsNone(aggregate([record()])["repair_success_rate"])
+
+
+class SelectTest(unittest.TestCase):
+    SUITE = {"tasks": [{"id": "t1", "layouts": ["a", "b", "e"]}, {"id": "t2", "layouts": ["a", "c"]}]}
+
+    def test_keeps_only_named_tasks_and_layouts(self):
+        picked = select(self.SUITE, tasks=["t1"], layouts=["a", "e"])
+        self.assertEqual(picked["tasks"], [{"id": "t1", "layouts": ["a", "e"]}])
+
+    def test_drops_tasks_left_with_no_layouts(self):
+        self.assertEqual([t["id"] for t in select(self.SUITE, layouts=["c"])["tasks"]], ["t2"])
+
+    def test_unknown_names_are_an_error(self):
+        with self.assertRaises(ValueError):
+            select(self.SUITE, tasks=["export_invoce"])
 
 
 class FakeSuiteTest(unittest.TestCase):
