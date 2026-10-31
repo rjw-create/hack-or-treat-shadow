@@ -13,6 +13,8 @@ from playwright.sync_api import sync_playwright
 from shadow.run import run_plan, save_run, with_layout
 
 ROOT = Path(__file__).resolve().parent.parent
+# The demo page is local and instant, so a short wait is enough to see that an element is missing.
+FAST_TIMEOUT_MS = 500
 PLAN = json.loads((ROOT / "tests" / "fixtures" / "plan_export.json").read_text(encoding="utf-8"))
 
 
@@ -61,9 +63,10 @@ class RunnerTest(unittest.TestCase):
         cls.pw.stop()
         cls.server.shutdown()
 
-    def run_layout(self, layout, repair):
+    def run_layout(self, layout, repair, **kwargs):
         page = self.browser.new_page()
-        result = run_plan(page, with_layout(self.plan, layout), check=always_ok, repair=repair, log=lambda msg: None)
+        result = run_plan(page, with_layout(self.plan, layout), check=always_ok, repair=repair, log=lambda msg: None,
+                          step_timeout_ms=FAST_TIMEOUT_MS, **kwargs)
         status = page.get_by_role("status").text_content()
         page.close()
         return result, status
@@ -89,6 +92,19 @@ class RunnerTest(unittest.TestCase):
         self.assertEqual(result["plan"]["steps"][2]["target"], {"role": "radio", "name": "Unpaid"})
         self.assertEqual(status, "Exported 1 invoice: INV-1042")
 
+    def test_visual_check_runs_on_final_step_and_after_repairs(self):
+        visual_calls = []
+
+        def visual_ok(page, step):
+            visual_calls.append(step["intent"])
+            return True, "fake visual check"
+
+        result, _ = self.run_layout("e", repair=dropdown_to_radio_repair, visual_check=visual_ok)
+        self.assertTrue(result["ok"])
+        self.assertEqual(visual_calls, ["Show only unpaid invoices", "Export the selected invoice"])
+        used = [[a["check"]["used"] for a in s["attempts"] if a["check"]] for s in result["log"]["steps"]]
+        self.assertEqual(used, [["check"], ["check"], ["visual_check"], ["check"], ["visual_check"]])
+
     def test_gives_up_after_repeated_failed_repairs(self):
         result, _ = self.run_layout("b", repair=useless_repair)
         self.assertFalse(result["ok"])
@@ -106,7 +122,7 @@ class RunnerTest(unittest.TestCase):
             (exec_dir / "shots").mkdir(parents=True)
             page = self.browser.new_page()
             result = run_plan(page, with_layout(self.plan, "b"), check=always_ok, repair=fake_repair,
-                              log=lambda msg: None, shots_dir=exec_dir / "shots",
+                              log=lambda msg: None, shots_dir=exec_dir / "shots", step_timeout_ms=FAST_TIMEOUT_MS,
                               run_info={"exec_id": "test", "layout": "b", "models": {"planner": "fake", "checker": "fake"}})
             page.close()
             save_run(exec_dir, result)
