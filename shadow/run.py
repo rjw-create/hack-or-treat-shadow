@@ -24,6 +24,8 @@ from shadow.steps import ACTIONS, PlanError, locate, validate_plan, validate_ste
 
 STEP_TIMEOUT_MS = 3000
 MAX_REPAIRS_PER_STEP = 2
+# Only used for the viewer's highlight box, so it must not slow a run down.
+BBOX_TIMEOUT_MS = 500
 # The accessibility snapshot is the repairer's map of the page; capped to keep prompts fast.
 MAX_SNAPSHOT_CHARS = 6000
 
@@ -76,9 +78,9 @@ def do_step(page, step):
         loc.press(step["value"])
 
 
-def model_check(page, step, png):
+def model_check(page, step):
     reply = llm.chat_json("checker", CHECK_PROMPT.format(intent=step["intent"], expected=step["expected"]),
-                          images_png=[png or page.screenshot()], schema=CHECK_SCHEMA)
+                          images_png=[page.screenshot()], schema=CHECK_SCHEMA)
     return bool(reply.get("ok")), str(reply.get("reason", ""))
 
 
@@ -99,6 +101,15 @@ def take_screenshot(page):
         return page.screenshot()
     except PlaywrightError:
         return None
+
+
+def target_box(page, target):
+    """Where the target sits in the viewport screenshot, in CSS pixels; None if it can't be found quickly."""
+    try:
+        box = locate(page, target).bounding_box(timeout=BBOX_TIMEOUT_MS)
+    except PlaywrightError:
+        return None
+    return {k: round(v, 1) for k, v in box.items()} if box else None
 
 
 def summarize(steps_log):
@@ -144,7 +155,7 @@ def run_plan(page, plan, check=model_check, repair=model_repair, log=print, shot
             n = len(entry["attempts"]) + 1
             log(f"[{i + 1}/{len(plan['steps'])}] {step['intent']}" + (f" (attempt {n})" if n > 1 else ""))
             attempt = {"attempt": n, "step": copy.deepcopy(step), "action_ok": False, "error": None, "check": None,
-                       "screenshot": None, "action_s": 0, "check_s": 0, "repair": None}
+                       "screenshot": None, "bbox": None, "action_s": 0, "check_s": 0, "repair": None}
             entry["attempts"].append(attempt)
 
             t0 = time.perf_counter()
@@ -161,9 +172,12 @@ def run_plan(page, plan, check=model_check, repair=model_repair, log=print, shot
                 (Path(shots_dir) / name).write_bytes(png)
                 attempt["screenshot"] = "shots/" + name
 
+            if attempt["action_ok"] and "target" in step:
+                attempt["bbox"] = target_box(page, step["target"])
+
             if attempt["action_ok"]:
                 t0 = time.perf_counter()
-                ok, reason = check(page, step, png)
+                ok, reason = check(page, step)
                 attempt["check_s"] = seconds_since(t0)
                 attempt["check"] = {"ok": bool(ok), "reason": reason}
                 problem = None if ok else f"Action ran but the check failed: {reason}"

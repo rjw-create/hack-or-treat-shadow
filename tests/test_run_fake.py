@@ -21,7 +21,7 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
         pass
 
 
-def always_ok(page, step, png):
+def always_ok(page, step):
     return True, "fake check"
 
 
@@ -30,6 +30,13 @@ def fake_repair(page, step, problem):
     fixed = copy.deepcopy(step)
     fixed["target"]["name"] = "Download selected"
     return fixed, "The Export button was renamed to Download selected and moved below the table."
+
+
+def dropdown_to_radio_repair(page, step, problem):
+    """Layout e: the Status dropdown became radio buttons, so 'select' must become 'click' on a radio."""
+    fixed = {"intent": step["intent"], "action": "click", "target": {"role": "radio", "name": step["value"]},
+             "expected": step["expected"]}
+    return fixed, "The Status dropdown is now a group of radio buttons; click the matching radio instead."
 
 
 def useless_repair(page, step, problem):
@@ -75,6 +82,13 @@ class RunnerTest(unittest.TestCase):
         self.assertEqual(result["plan"]["steps"][4]["target"]["name"], "Download selected")
         self.assertEqual(status, "Exported 1 invoice: INV-1042")
 
+    def test_layout_e_repair_switches_select_to_radio(self):
+        result, status = self.run_layout("e", repair=dropdown_to_radio_repair)
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["plan"]["steps"][2]["action"], "click")
+        self.assertEqual(result["plan"]["steps"][2]["target"], {"role": "radio", "name": "Unpaid"})
+        self.assertEqual(status, "Exported 1 invoice: INV-1042")
+
     def test_gives_up_after_repeated_failed_repairs(self):
         result, _ = self.run_layout("b", repair=useless_repair)
         self.assertFalse(result["ok"])
@@ -112,6 +126,10 @@ class RunnerTest(unittest.TestCase):
             self.assertTrue(second["action_ok"] and second["check"]["ok"])
             self.assertEqual(second["screenshot"], "shots/005-2.png")
             self.assertTrue((exec_dir / second["screenshot"]).is_file())
+            self.assertIsNone(first["bbox"])
+            self.assertEqual(set(second["bbox"]), {"x", "y", "width", "height"})
+            self.assertGreater(second["bbox"]["width"], 0)
+            self.assertIsNone(log["steps"][0]["attempts"][0]["bbox"])  # goto has no target
             self.assertEqual(log["summary"], {**log["summary"], "steps_total": 5, "steps_passed": 5,
                                               "repairs_attempted": 1, "repairs_succeeded": 1})
             self.assertGreater(log["summary"]["time_per_step_s"], 0)

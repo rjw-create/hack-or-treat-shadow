@@ -70,7 +70,7 @@ and `-`; `--layout` accepts any such id. Without `--layout` the plan's URLs are 
 `run.json` has `"layout": null`.
 
 **Running without a model (Proof, Surface):** call `shadow.run.run_plan(page, plan, check=..., repair=...,
-shots_dir=..., run_info=...)` with plain functions `check(page, step, png) -> (ok, reason)` and
+shots_dir=..., run_info=...)` with plain functions `check(page, step) -> (ok, reason)` and
 `repair(page, step, problem) -> (new_step, explanation)`, then `save_run(exec_dir, result)`.
 `tests/test_run_fake.py` shows the pattern.
 
@@ -111,6 +111,7 @@ Each `attempts[]` entry:
 | `error` | string or null | First line of the Playwright error |
 | `check` | `{ok, reason}` or null | Checker verdict; null if the action failed, so no check ran |
 | `screenshot` | string or null | e.g. `"shots/005-1.png"`, taken after the action and before the check |
+| `bbox` | `{x, y, width, height}` or null | Where the step's target is in `screenshot`, in CSS pixels from the top-left of the viewport, measured right after the action. Null for `goto`, failed actions, or if the element can't be found within 0.5 s. Optional for readers: draw it if present. |
 | `action_s`, `check_s` | number | Time for the action and for the checker call (0 if not run) |
 | `repair` | object or null | Present when this attempt failed and a repair was requested: `{explanation, new_step, accepted, repair_s}`. `accepted` is false if the repaired step failed validation. |
 
