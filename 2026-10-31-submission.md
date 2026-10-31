@@ -47,16 +47,21 @@ First real run: `gemma4:e4b` as planner and checker on a laptop CPU, task "expor
 invoice", one run per layout. Three runs are an anecdote, not a measurement. Source:
 `results/2026-10-31-gemma-run-notes.md` and the raw run logs it links.
 
-| Layout | Page change | Task done | Repair of the changed element | Mean time per step |
-| --- | --- | --- | --- | --- |
-| a | none | yes | not needed | 24.7 s |
-| e | Status dropdown became radio buttons | yes | correct on the first try: changed `select` to `click` on the "Unpaid" radio | 32.6 s |
-| b | Export button renamed and moved | page correct, runner gave up | correct on the first try: "Export selected" became "Download selected" | 162.9 s |
+Task success means the runner reported success **and** the page shows the expected end state.
+
+| Layout | Page change | Task success | Repair of the changed element | Attempts per task | Mean time per step |
+| --- | --- | --- | --- | --- | --- |
+| a | none | yes | not needed | 5 | 24.7 s |
+| e | Status dropdown became radio buttons | yes | correct on the first try: changed `select` to `click` on the "Unpaid" radio | 6 | 32.6 s |
+| b | Export button renamed and moved | no: the export happened, but the runner gave up | correct on the first try: "Export selected" became "Download selected" | 10 | 162.9 s |
+
+Attempts count every try, retries included; each plan has 5 steps.
 
 On layout b, both page changes were repaired correctly and the page ended showing "Exported 1 invoice: INV-1042",
 but the screenshot checker returned "not ok" twice while its own explanation said the page matched, so the runner
 gave up. Two steps on that run also timed out on elements the layout did not change, probably because other
 work was using the CPU at the time (not verified). The weak point in this run was the checker, not the repair.
+A fix for the checker and a re-test of layout b are in progress.
 
 The fake-mode files in `results/` are pipeline tests and are not model results.
 

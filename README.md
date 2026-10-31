@@ -122,12 +122,19 @@ run folder per run (path printed as `Run folders go to ...`) that `viewer.report
 `--layouts` pick a subset, for example `--tasks export_invoice --layouts a b e`.
 
 ## Results
-No results from Gemma 4 yet. The files in `results/` so far are fake-mode pipeline tests; they show the runner,
-repair loop and metrics work end to end, and say nothing about how well Gemma 4 plans, checks or repairs.
-This section will list task success rate, repair success rate and time per step from `--mode gemma` runs, with a
-link to the raw file each number comes from.
+First real run, 2026-10-31: `gemma4:e4b` as planner and checker on a laptop CPU, task `export_invoice`, one run
+on each of layouts a, b and e. Three runs are an anecdote, not a measurement. Details and causes:
+[`results/2026-10-31-gemma-run-notes.md`](results/2026-10-31-gemma-run-notes.md); raw run logs:
+`results/2026-10-31-133731-gemma-runs.jsonl`.
 
-Measured time per step with Gemma 4 on this machine: (fill in from the first real run)
+- **Task success** (runner ok and correct end page): layouts a and e yes, layout b no.
+- **Layout e:** Gemma 4 repaired the step by changing its action, from `select` on the Status dropdown to `click`
+  on the "Unpaid" radio button, and the task finished.
+- **Layout b:** the repair to "Download selected" was right and the export happened, but the screenshot checker
+  said "not ok" while its own reason said the page matched, so the runner gave up. A fix and a re-test are in progress.
+- **Time per step:** about 20 to 40 s when nothing goes wrong, almost all of it model time.
+
+The `fake` files in `results/` are pipeline tests; they say nothing about how well Gemma 4 plans, checks or repairs.
 
 ## Checks (Git Bash)
 ```
