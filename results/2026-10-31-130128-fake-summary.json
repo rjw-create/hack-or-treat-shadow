@@ -1,0 +1,49 @@
+{
+  "mode": "fake",
+  "note": "PIPELINE TEST, NOT A MODEL RESULT: the fake checker always says ok and the fake repairer knows the answer. These numbers say nothing about Gemma's ability.",
+  "models": {
+    "planner": "fake",
+    "checker": "fake"
+  },
+  "runs_per_layout": 3,
+  "raw": "2026-10-31-130128-fake-runs.jsonl",
+  "overall": {
+    "runs": 6,
+    "task_success_rate": 1,
+    "runner_ok_rate": 1,
+    "repairs_attempted": 3,
+    "repairs_succeeded": 3,
+    "repair_success_rate": 1.0,
+    "steps_per_task": 5.5,
+    "time_per_step_s": 0.341,
+    "errors": 0
+  },
+  "by_task_layout": [
+    {
+      "task": "export_invoice",
+      "layout": "a",
+      "runs": 3,
+      "task_success_rate": 1,
+      "runner_ok_rate": 1,
+      "repairs_attempted": 0,
+      "repairs_succeeded": 0,
+      "repair_success_rate": null,
+      "steps_per_task": 5,
+      "time_per_step_s": 0.05,
+      "errors": 0
+    },
+    {
+      "task": "export_invoice",
+      "layout": "b",
+      "runs": 3,
+      "task_success_rate": 1,
+      "runner_ok_rate": 1,
+      "repairs_attempted": 3,
+      "repairs_succeeded": 3,
+      "repair_success_rate": 1.0,
+      "steps_per_task": 6,
+      "time_per_step_s": 0.632,
+      "errors": 0
+    }
+  ]
+}

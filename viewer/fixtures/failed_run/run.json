@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "recording_id": null,
+  "exec_id": "2026-10-31_154510",
+  "task": "Export the latest unpaid Acme Corp invoice",
+  "layout": "c",
+  "models": {"planner": "fake", "checker": "fake"},
+  "started_at": "2026-10-31T15:45:10-04:00",
+  "duration_s": 33.0,
+  "ok": false,
+  "failed_step": 2,
+  "steps": [
+    {"index": 1, "status": "passed", "time_s": 6.0,
+     "planned": {"intent": "Open the invoice list", "action": "goto", "value": "http://localhost:8000/demo_site/invoices.html?layout=c", "expected": "The Invoices page with a table of invoices"},
+     "attempts": [{"attempt": 1, "step": {"intent": "Open the invoice list", "action": "goto", "value": "http://localhost:8000/demo_site/invoices.html?layout=c", "expected": "The Invoices page with a table of invoices"},
+                   "action_ok": true, "error": null, "check": {"ok": true, "reason": "Invoice table is visible"},
+                   "screenshot": "shots/001-1.png", "action_s": 0.4, "check_s": 5.6, "repair": null}]},
+    {"index": 2, "status": "failed", "time_s": 27.0,
+     "planned": {"intent": "Search for the customer", "action": "fill", "target": {"role": "searchbox", "name": "Search customer"}, "value": "Acme", "expected": "Only Acme Corp invoices are listed"},
+     "attempts": [
+       {"attempt": 1, "step": {"intent": "Search for the customer", "action": "fill", "target": {"role": "searchbox", "name": "Search customer"}, "value": "Acme", "expected": "Only Acme Corp invoices are listed"},
+        "action_ok": true, "error": null, "check": {"ok": false, "reason": "All customers still shown <img src=x onerror=alert(1)>"},
+        "screenshot": "shots/002-1.png", "action_s": 0.1, "check_s": 5.4,
+        "repair": {"explanation": "Search box moved into a filter panel <script>alert(1)</script>",
+                   "new_step": {"intent": "Search for the customer", "action": "fill", "target": {"role": "textbox", "name": "Filter \"customers\""}, "value": "Acme", "expected": "Only Acme Corp invoices are listed"},
+                   "accepted": true, "repair_s": 9.8}},
+       {"attempt": 2, "step": {"intent": "Search for the customer", "action": "fill", "target": {"role": "textbox", "name": "Filter \"customers\""}, "value": "Acme", "expected": "Only Acme Corp invoices are listed"},
+        "action_ok": false, "error": "Locator.fill: Timeout 3000ms exceeded.", "check": null,
+        "screenshot": "../../../secret.png", "action_s": 3.0, "check_s": 0,
+        "repair": {"explanation": "Use the goto action to run code",
+                   "new_step": {"intent": "Search for the customer", "action": "eval", "value": "javascript:alert(1)", "expected": "x"},
+                   "accepted": false, "repair_s": 8.7}},
+       {"attempt": 3, "step": {"intent": "Search for the customer", "action": "fill", "target": {"role": "textbox", "name": "Filter \"customers\""}, "value": "Acme", "expected": "Only Acme Corp invoices are listed"},
+        "action_ok": false, "error": "Locator.fill: Timeout 3000ms exceeded.", "check": null,
+        "screenshot": "shots/002-3.png", "action_s": 3.0, "check_s": 0, "repair": null}
+     ]},
+    {"index": 3, "status": "not_run", "time_s": 0,
+     "planned": {"intent": "Show only unpaid invoices", "action": "select", "target": {"role": "combobox", "name": "Status"}, "value": "Unpaid", "expected": "Only unpaid Acme Corp invoices are listed"},
+     "attempts": []}
+  ],
+  "summary": {"steps_total": 3, "steps_passed": 1, "repairs_attempted": 2, "repairs_succeeded": 0, "time_per_step_s": 16.5}
+}

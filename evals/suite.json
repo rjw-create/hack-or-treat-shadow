@@ -1,0 +1,11 @@
+{
+  "tasks": [
+    {
+      "id": "export_invoice",
+      "plan": "tasks/export_invoice.json",
+      "layouts": ["a", "b"],
+      "done_when": {"role": "status", "text": "Exported 1 invoice: INV-1042"},
+      "oracle_renames": {"b": {"Export selected": "Download selected"}}
+    }
+  ]
+}
