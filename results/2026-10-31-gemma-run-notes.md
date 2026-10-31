@@ -38,3 +38,14 @@ So both page changes the layouts introduce were repaired correctly on the first 
   errors. Separate them before quoting it.
 - Time per step on CPU is about 20-40 s when nothing goes wrong, almost all of it model time
   (actions take under 1 s).
+
+## How to read the numbers
+- **Headline metric: task success**, meaning the runner said ok **and** the page shows the expected end state.
+  `runner_ok_rate` is the runner's own verdict and is wrong whenever the checker is wrong.
+- **`steps_per_task` in the summary JSON counts attempts**, retries included, not plan steps. All three plans have 5 steps;
+  layout b used 10 attempts. Later summaries name this `attempts_per_task`.
+- **`time_per_step_s` in the summary is the mean over every step that ran, pooled across runs.** `run.json`'s own
+  `summary.time_per_step_s` is per run.
+- **Model cold start:** the model was not loaded beforehand, so layout a's first check (37.7 s) probably includes
+  loading it. Step 1's check took 30.2 s on b and 25.9 s on e. Without layout a's step 1, layout a's mean time per step
+  is 21.3 s instead of 24.7 s. Later gemma-mode runs warm the model up before timing.
