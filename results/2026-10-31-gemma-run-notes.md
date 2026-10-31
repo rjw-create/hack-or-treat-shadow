@@ -48,4 +48,4 @@ So both page changes the layouts introduce were repaired correctly on the first 
   `summary.time_per_step_s` is per run.
 - **Model cold start:** the model was not loaded beforehand, so layout a's first check (37.7 s) probably includes
   loading it. Step 1's check took 30.2 s on b and 25.9 s on e. Without layout a's step 1, layout a's mean time per step
-  is 21.3 s instead of 24.7 s. Later gemma-mode runs warm the model up before timing.
+  is 21.4 s instead of 24.7 s. Later gemma-mode runs warm the model up before timing.
