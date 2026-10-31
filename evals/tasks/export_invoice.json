@@ -1,0 +1,10 @@
+{
+  "task": "Export the latest unpaid Acme Corp invoice",
+  "steps": [
+    {"intent": "Open the invoice list", "action": "goto", "value": "http://localhost:8000/demo_site/invoices.html", "expected": "The Invoices page with a table of invoices"},
+    {"intent": "Search for the customer", "action": "fill", "target": {"role": "searchbox", "name": "Search customer"}, "value": "Acme", "expected": "Only Acme Corp invoices are listed"},
+    {"intent": "Show only unpaid invoices", "action": "select", "target": {"role": "combobox", "name": "Status"}, "value": "Unpaid", "expected": "Only unpaid Acme Corp invoices are listed"},
+    {"intent": "Pick the latest invoice", "action": "click", "target": {"role": "checkbox", "name": "Select INV-1042"}, "expected": "INV-1042 is checked"},
+    {"intent": "Export the selected invoice", "action": "click", "target": {"role": "button", "name": "Export selected"}, "expected": "A message says 1 invoice INV-1042 was exported"}
+  ]
+}
