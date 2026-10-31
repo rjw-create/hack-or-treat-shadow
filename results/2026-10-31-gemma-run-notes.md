@@ -1,4 +1,47 @@
-# First real Gemma 4 eval run (2026-10-31, 13:37-13:56)
+# Real Gemma 4 eval runs (2026-10-31)
+
+Two real runs, one run per layout each: the first run (13:37-13:56), and a re-test (14:08-14:16) after Shadow
+Core's checker and timeout fixes (PRs #16 and #17). **The re-test is the one to quote**; the first run shows what
+those fixes changed.
+
+## Re-test after Core PRs #16 and #17 (14:08-14:16)
+
+Raw: `2026-10-31-140849-gemma-runs.jsonl` (layout b, run first) and `2026-10-31-141134-gemma-runs.jsonl`
+(layouts a and e), with matching `-summary.json` files. Both record code commit `a23682c` with no uncommitted
+changes, which includes #16 (one structured check verdict, text-check second opinion, 10 s action timeout) and #17
+(the check prompt says the step has already happened). Same setup as the first run: `gemma4:e4b` as planner
+and checker on CPU, task `export_invoice`, headed browser with page video (`--show --video`). The model was
+loaded before timing started, and the coordinator declared a quiet period on the machine for this window.
+
+| Layout | Page change | Task success | Runner ok | Page end state correct | Repairs (succeeded / attempted) | Mean time per step |
+| --- | --- | --- | --- | --- | --- | --- |
+| a | none | yes | yes | yes | 0 / 0 | 24.2 s |
+| b | export button renamed and moved | yes | yes | yes | 1 / 1 | 31.1 s |
+| e | status dropdown became radio buttons | yes | yes | yes | 1 / 1 | 35.1 s |
+
+- **3 of 3 tasks succeeded, and 2 of 2 repairs succeeded, each on the first try.**
+  - b: renamed `Export selected` to `Download selected` (33.4 s).
+  - e: changed `select` on the Status combobox to `click` on the `Unpaid` radio button (53.4 s).
+- **The checker agreed with the page every time.** No `ok: false` on a correct page, and the runner's verdict matched the
+  page check in all 3 runs. In the first run, the screenshot checker turned down the correct layout-b page twice.
+- **No timeouts on unchanged elements.** The only failed actions were the two the layouts were built to break.
+  Each waited the full 10 s timeout before its repair.
+- **Time:** 30.2 s per step over all 15 steps (15-29 s per model check; actions that found their element took under 3 s); a whole
+  5-step task took 2.0-2.9 min. Layout a's first check (25.2 s) is in line with the others, so the model
+  warm-up removed the cold-start effect seen in the first run.
+- **Layout b compared with the first run:** 155.6 s instead of 814.7 s, 6 attempts instead of 10, and the runner
+  finished instead of giving up.
+- **Still 1 run per layout.** This shows the fixed pipeline working end to end on all three layouts. It is not
+  a success rate.
+
+Run folders (git-ignored, on Jackson's machine) each hold `run.json`, `shots/` and `video.webm`:
+`runs/eval-2026-10-31-140849/exec/2026-10-31_140851-export_invoice-b-1`,
+`runs/eval-2026-10-31-141134/exec/2026-10-31_141136-export_invoice-a-1`,
+`runs/eval-2026-10-31-141134/exec/2026-10-31_141338-export_invoice-e-1`.
+
+---
+
+# First run (13:37-13:56)
 
 Raw: `2026-10-31-133731-gemma-runs.jsonl` (full run.json per run). Summary: `2026-10-31-133731-gemma-summary.json`.
 Setup: `gemma4:e4b` as planner and checker, through Ollama on CPU (Intel Arc 140V laptop, 32 GB shared RAM), one run
