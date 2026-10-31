@@ -7,7 +7,9 @@ The page has no JavaScript; every value from run.json is escaped, because model-
 import argparse
 import html
 import json
+import math
 import re
+import struct
 import sys
 from pathlib import Path
 
@@ -19,7 +21,8 @@ STATUS_LABELS = {"passed": "Passed", "repaired": "Repaired", "failed": "Failed",
 CSS = """
 :root { --color-bg: #FAFAF7; --color-card: #FFFFFF; --color-text: #1A1A1A; --color-muted: #5E5E5E;
   --color-line: #E2E2DC; --color-accent: #2F6FEB; --color-danger: #C2410C; --color-ok: #1F7A3A;
-  --color-warn: #8A5A00; --color-del-bg: #FBE4DA; --color-ins-bg: #DDF2E2; --radius: 12px; }
+  --color-warn: #8A5A00; --color-del-bg: #FBE4DA; --color-ins-bg: #DDF2E2; --color-highlight: #C026D3;
+  --radius: 12px; }
 @media (prefers-color-scheme: dark) {
   :root { --color-bg: #15161A; --color-card: #1F2026; --color-text: #ECECEA; --color-muted: #A8A8A3;
     --color-line: #34353D; --color-accent: #7FA6FF; --color-danger: #FF8A5C; --color-ok: #6FD08C;
@@ -49,6 +52,12 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: 14px; }
   margin-top: 12px; }
 .attempt { border: 1px solid var(--color-line); border-radius: var(--radius); padding: 12px; min-width: 0; }
 .attempt h3 { font-size: 16px; margin: 0 0 8px; }
+.shot { display: block; position: relative; }
+/* Drawn outside the element in a color the demo site doesn't use, so it shows on a blue button too. */
+.bbox { position: absolute; outline: 3px solid var(--color-highlight); outline-offset: 3px; border-radius: 4px;
+  pointer-events: none; }
+.bbox.bad { outline-color: var(--color-danger); }
+.shot-note { margin: 4px 0 0; font-size: 14px; }
 .shot img { display: block; width: 100%; height: auto; border: 1px solid var(--color-line); border-radius: 8px; }
 .noshot { padding: 24px 8px; text-align: center; border: 1px dashed var(--color-line); border-radius: 8px; }
 .repair { margin-top: 12px; padding: 12px; border-left: 4px solid var(--color-accent); background: var(--color-bg);
@@ -86,12 +95,41 @@ def describe(step):
     return " ".join(parts)
 
 
-def shot_html(exec_dir, path, alt):
+def png_size_px(path):
+    """(width, height) in pixels from the PNG header, or None if the file is not a PNG."""
+    with open(path, "rb") as f:
+        head = f.read(24)
+    if len(head) < 24 or head[:8] != b"\x89PNG\r\n\x1a\n" or head[12:16] != b"IHDR":
+        return None
+    return struct.unpack(">II", head[16:24])
+
+
+def bbox_style(bbox, size_px):
+    """CSS that places bbox over the scaled screenshot, in percent; None if bbox is unusable.
+    Assumes 1 CSS px = 1 screenshot px, which holds for the runner's default device scale factor."""
+    if not isinstance(bbox, dict) or not size_px or 0 in size_px:
+        return None
+    vals = [bbox.get(k) for k in ("x", "y", "width", "height")]
+    if not all(isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) for v in vals):
+        return None
+    x, y, w, h = vals
+    img_w, img_h = size_px
+    left, top = max(0.0, x), max(0.0, y)
+    right, bottom = min(float(img_w), x + w), min(float(img_h), y + h)
+    if right <= left or bottom <= top:
+        return None
+    return (f"left:{left / img_w * 100:.3f}%;top:{top / img_h * 100:.3f}%;"
+            f"width:{(right - left) / img_w * 100:.3f}%;height:{(bottom - top) / img_h * 100:.3f}%")
+
+
+def shot_html(exec_dir, path, alt, bbox=None, bad=False):
     if not isinstance(path, str) or not SHOT_PATH.match(path):
         return '<div class="noshot muted">No screenshot</div>'
     if not (exec_dir / path).is_file():
         return f'<div class="noshot muted">Screenshot missing: <code>{esc(path)}</code></div>'
-    return f'<a class="shot" href="{esc(path)}"><img src="{esc(path)}" alt="{esc(alt)}" loading="lazy"></a>'
+    style = bbox_style(bbox, png_size_px(exec_dir / path))
+    box = f'<span class="bbox{" bad" if bad else ""}" style="{style}"></span>' if style else ""
+    return f'<a class="shot" href="{esc(path)}"><img src="{esc(path)}" alt="{esc(alt)}" loading="lazy">{box}</a>'
 
 
 def repair_html(repair, before_step):
@@ -121,10 +159,21 @@ def attempt_html(exec_dir, step_index, attempt):
         result = f'<span class="bad">Check failed</span>: {esc(check.get("reason"))}'
     else:
         result = '<span class="muted">No check</span>'
+    passed = bool(attempt.get("action_ok") and check and check.get("ok"))
+    bbox = attempt.get("bbox")
+    target = step.get("target") or {}
+    if target and bbox:
+        note = f'<p class="shot-note muted">Box: where <code>{esc(describe({**step, "value": None}))}</code> was found</p>'
+    elif target and not attempt.get("action_ok"):
+        note = '<p class="shot-note muted">Target not found on this page</p>'
+    else:
+        note = ""
     parts = [
         '<div class="attempt">',
         f'<h3>Attempt {esc(n)}</h3>',
-        shot_html(exec_dir, attempt.get("screenshot"), f"Page after step {step_index}, attempt {n}"),
+        shot_html(exec_dir, attempt.get("screenshot"), f"Page after step {step_index}, attempt {n}",
+                  bbox=bbox, bad=not passed),
+        note,
         f'<dl><dt>Did</dt><dd><code>{esc(describe(step))}</code></dd>',
         f'<dt>Result</dt><dd>{result}</dd>',
         f'<dt>Time</dt><dd>action {esc(seconds(attempt.get("action_s")))}, '
@@ -171,6 +220,7 @@ def render(run, exec_dir):
     ]
     stat_html = "".join(f'<div class="stat"><span class="muted">{esc(k)}</span><b>{esc(v)}</b></div>' for k, v in stats)
     steps = "".join(step_html(exec_dir, s) for s in run.get("steps") or [])
+    recording = f' of recording {esc(run["recording_id"])}' if run.get("recording_id") else ""
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -182,7 +232,7 @@ def render(run, exec_dir):
 <body>
 <main>
   <h1>{esc(run.get("task"))}</h1>
-  <p class="muted">Run {esc(run.get("exec_id"))} of recording {esc(run.get("recording_id") or "none")},
+  <p class="muted">Run {esc(run.get("exec_id"))}{recording},
     layout {esc(run.get("layout") or "default")}, started {esc(run.get("started_at"))}.
     Planner <code>{esc(models.get("planner"))}</code>, checker <code>{esc(models.get("checker"))}</code>.</p>
   {verdict}

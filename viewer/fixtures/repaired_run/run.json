@@ -19,7 +19,7 @@
      "planned": {"intent": "Search for the customer", "action": "fill", "target": {"role": "searchbox", "name": "Search customer"}, "value": "Acme", "expected": "Only Acme Corp invoices are listed"},
      "attempts": [{"attempt": 1, "step": {"intent": "Search for the customer", "action": "fill", "target": {"role": "searchbox", "name": "Search customer"}, "value": "Acme", "expected": "Only Acme Corp invoices are listed"},
                    "action_ok": true, "error": null, "check": {"ok": true, "reason": "Three rows, all Acme Corp"},
-                   "screenshot": "shots/002-1.png", "action_s": 0.1, "check_s": 5.3, "repair": null}]},
+                   "screenshot": "shots/002-1.png", "bbox": {"x": 16.0, "y": 74.0, "width": 190.0, "height": 34.0}, "action_s": 0.1, "check_s": 5.3, "repair": null}]},
     {"index": 3, "status": "passed", "time_s": 5.6,
      "planned": {"intent": "Show only unpaid invoices", "action": "select", "target": {"role": "combobox", "name": "Status"}, "value": "Unpaid", "expected": "Only unpaid Acme Corp invoices are listed"},
      "attempts": [{"attempt": 1, "step": {"intent": "Show only unpaid invoices", "action": "select", "target": {"role": "combobox", "name": "Status"}, "value": "Unpaid", "expected": "Only unpaid Acme Corp invoices are listed"},
@@ -41,7 +41,7 @@
                    "accepted": true, "repair_s": 10.1}},
        {"attempt": 2, "step": {"intent": "Export the selected invoice", "action": "click", "target": {"role": "button", "name": "Download selected"}, "expected": "A message says 1 invoice INV-1042 was exported"},
         "action_ok": true, "error": null, "check": {"ok": true, "reason": "Status line reads Exported 1 invoice: INV-1042"},
-        "screenshot": "shots/005-2.png", "action_s": 0.2, "check_s": 6.1, "repair": null}
+        "screenshot": "shots/005-2.png", "bbox": {"x": 470.0, "y": 330.0, "width": 150.0, "height": 34.0}, "action_s": 0.2, "check_s": 6.1, "repair": null}
      ]}
   ],
   "summary": {"steps_total": 5, "steps_passed": 5, "repairs_attempted": 1, "repairs_succeeded": 1, "time_per_step_s": 8.4}
