@@ -4,6 +4,11 @@ Record yourself doing a browser task once. Shadow turns the recording into a ste
 Gemma 4, runs it, checks each step, and repairs the plan when the page changes.
 Nothing leaves your machine.
 
+**Live demo:** https://rjw-create.github.io/hack-or-treat-shadow/demo/ shows recorded real runs: the video and the
+report for each layout. Shadow itself runs locally with Ollama; the demo page does not call a model.
+Video only: https://rjw-create.github.io/hack-or-treat-shadow/demo/shadow-backup.mp4 (77 s, model waits sped up,
+real speed shown on screen).
+
 ## How it works
 1. `shadow.record` opens a browser and logs each click, fill and select by its role and accessible
    name (for example `button "Export selected"`), plus a screenshot after each event.
