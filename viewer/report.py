@@ -144,8 +144,9 @@ def repair_html(repair, before_step):
         '<div class="repair">'
         f'<p><strong>Repair</strong> by the planner, {verdict}, {esc(seconds(repair.get("repair_s")))}</p>'
         f'<p>{esc(repair.get("explanation"))}</p>'
-        f'<p><code><del>{esc(before)}</del></code> &rarr; <code><ins>{esc(after)}</ins></code></p>'
-        '</div>'
+        + (f'<p class="muted">No change to the step: <code>{esc(after)}</code></p>' if before == after else
+           f'<p><code><del>{esc(before)}</del></code> &rarr; <code><ins>{esc(after)}</ins></code></p>')
+        + '</div>'
     )
 
 
