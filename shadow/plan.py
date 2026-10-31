@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 from shadow import llm
-from shadow.steps import ACTIONS, validate_plan
+from shadow.steps import ACTIONS, PlanError, validate_plan
 
 # Keyframes cost prompt time on this machine, so only a few go to the model.
 MAX_KEYFRAMES = 4
@@ -73,7 +73,17 @@ def make_plan(run_dir, chat=llm.chat_json):
     return plan
 
 
-if __name__ == "__main__":
-    plan = make_plan(Path(sys.argv[1]))
+def main():
+    try:
+        llm.preflight(["planner"])
+        plan = make_plan(Path(sys.argv[1]))
+    except (llm.LLMError, PlanError) as e:
+        print(f"No plan: {e}")
+        return 2
     for i, step in enumerate(plan["steps"], 1):
         print(f"{i}. [{step['action']}] {step['intent']}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
