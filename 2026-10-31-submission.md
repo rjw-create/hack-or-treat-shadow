@@ -1,6 +1,6 @@
 # Shadow: submission text
 
-Hack or Treat 2026, category: Best use of Gemma 4. Ready to submit once the demo video is uploaded (see Links).
+Hack or Treat 2026, category: Best use of Gemma 4. Ready to submit; the live demo and video links are under Links.
 
 ## One line
 Show Shadow a browser task once; local Gemma 4 turns it into a plan, checks every step, and repairs the plan
@@ -83,5 +83,7 @@ The fake-mode files in `results/` are pipeline tests and are not model results.
 
 ## Links
 - Code: https://github.com/rjw-create/hack-or-treat-shadow
-- Demo video (77 s, model waits sped up with the speed shown on screen): upload from
-  `gemma4-project-surface\runs\video\shadow-backup.mp4` and put the link here.
+- Live demo (recorded real runs: video and the three run reports; Shadow itself runs locally with Ollama):
+  https://rjw-create.github.io/hack-or-treat-shadow/demo/
+- Demo video (77 s, model waits sped up with the real speed shown on screen):
+  https://rjw-create.github.io/hack-or-treat-shadow/demo/shadow-backup.mp4
