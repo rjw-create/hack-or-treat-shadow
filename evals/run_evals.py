@@ -16,6 +16,7 @@ import functools
 import http.server
 import json
 import statistics
+import subprocess
 import sys
 import threading
 from datetime import datetime
@@ -32,8 +33,12 @@ ROOT = Path(__file__).resolve().parent.parent
 SUITE = ROOT / "evals" / "suite.json"
 RESULTS = ROOT / "results"
 RUNS = ROOT / "runs"
+# Playwright's default viewport, which shadow.run also uses; recording at the same size avoids a gray band
+# and keeps the checker's screenshots identical with and without --video.
+VIDEO_SIZE = {"width": 1280, "height": 720}
 # Fake repairs start once an action times out; real runs keep the runner's own default.
-FAKE_STEP_TIMEOUT_MS = 500
+# 2000, not lower: under heavy CPU load (e.g. a model run) even present elements can take >500 ms.
+FAKE_STEP_TIMEOUT_MS = 2000
 END_STATE_TIMEOUT_MS = 3000
 FAKE_NOTE = ("PIPELINE TEST, NOT A MODEL RESULT: the fake checker always says ok and the fake repairer "
              "knows the answer. These numbers say nothing about Gemma's ability.")
@@ -91,15 +96,21 @@ def end_state_ok(page, done_when):
     return (text or "").strip() == done_when["text"]
 
 
-def run_one(browser, plan, models_kw, done_when, run_info, exec_dir=None, log=None):
+def run_one(browser, plan, models_kw, done_when, run_info, exec_dir=None, log=None, video=False):
     """Run one plan in a fresh page; returns metrics plus the runner's full run.json as run_log.
     models_kw: the check/repair/visual_check/step_timeout_ms arguments for run_plan().
-    With exec_dir, also saves screenshots and run.json there in the folder layout the viewer reads."""
+    With exec_dir, also saves screenshots and run.json there in the folder layout the viewer reads.
+    With video (needs exec_dir), records the browser page only, never the desktop, to exec_dir/video.webm."""
     shots_dir = None
     if exec_dir:
         shots_dir = exec_dir / "shots"
         shots_dir.mkdir(parents=True)
-    page = browser.new_page()
+    if video:
+        context = browser.new_context(viewport=VIDEO_SIZE, record_video_dir=str(exec_dir),
+                                      record_video_size=VIDEO_SIZE)
+    else:
+        context = browser.new_context()
+    page = context.new_page()
     error = None
     try:
         result = run_plan(page, plan, **models_kw, log=log or (lambda msg: None),
@@ -110,6 +121,10 @@ def run_one(browser, plan, models_kw, done_when, run_info, exec_dir=None, log=No
         result = None
     end_ok = end_state_ok(page, done_when)
     page.close()
+    context.close()  # the video file is only complete once its context closes
+    if video:
+        page.video.save_as(exec_dir / "video.webm")
+        page.video.delete()  # drop Playwright's randomly named copy
 
     if result is None:
         # run_plan raised before building its log, so there are no step-level numbers for this run.
@@ -154,7 +169,9 @@ def aggregate(records):
         "repairs_attempted": attempted,
         "repairs_succeeded": succeeded,
         "repair_success_rate": round(succeeded / attempted, 3) if attempted else None,
-        "steps_per_task": round(statistics.mean(r["attempts"] for r in records), 2),
+        "plan_steps_per_task": round(statistics.mean(r["steps_total"] for r in records), 2),
+        # Actions performed, retries included; equals plan steps only when nothing failed.
+        "attempts_per_task": round(statistics.mean(r["attempts"] for r in records), 2),
         "time_per_step_s": round(statistics.mean(step_times), 3) if step_times else None,
         "errors": sum(1 for r in records if r["error"]),
     }
@@ -168,6 +185,13 @@ def summarize(records):
         "overall": aggregate(records),
         "by_task_layout": [{"task": t, "layout": lay, **aggregate(rs)} for (t, lay), rs in sorted(groups.items())],
     }
+
+
+def code_version():
+    """The commit the eval ran on, so every result can be tied to its code; dirty = uncommitted changes."""
+    def git(*args):
+        return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+    return {"commit": git("rev-parse", "HEAD") or None, "dirty": bool(git("status", "--porcelain", "--", "shadow", "evals"))}
 
 
 def select(suite, tasks=None, layouts=None):
@@ -199,17 +223,24 @@ def warm_up(browser, suite, suite_path, port):
     page.close()
 
 
-def run_suite(mode, runs, out_dir, suite_path=SUITE, tasks=None, layouts=None, runs_dir=None, show=False):
+def run_suite(mode, runs, out_dir, suite_path=SUITE, tasks=None, layouts=None, runs_dir=None, show=False,
+              video=False):
     """Run the suite, or the chosen tasks/layouts of it; returns (records, summary, jsonl_path, summary_path).
     runs_dir: also save each run's screenshots and run.json under it, in the layout viewer.report reads.
-    show: headed browser and the runner's log on the console, for filming a run."""
+    show: headed browser and the runner's log on the console, for filming a run.
+    video: record each run's browser page to video.webm in its exec folder (needs runs_dir)."""
+    if video and not runs_dir:
+        raise ValueError("video needs runs_dir: each run's video is saved in its exec folder")
     suite = select(json.loads(suite_path.read_text(encoding="utf-8")), tasks, layouts)
     if mode == "fake":
         models = {"planner": "fake", "checker": "fake"}
     else:
         models = {"planner": llm.model_for("planner"), "checker": llm.model_for("checker")}
+        # Load the models before timing starts, or the first check's time includes model loading.
+        llm.warmup(["planner", "checker"])
     note = FAKE_NOTE if mode == "fake" else "Real model run through Ollama."
 
+    code = code_version()
     out_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y-%m-%d-%H%M%S")
     jsonl_path = out_dir / f"{stamp}-{mode}-runs.jsonl"
@@ -243,14 +274,16 @@ def run_suite(mode, runs, out_dir, suite_path=SUITE, tasks=None, layouts=None, r
                     if show:
                         print(f"== {task['id']} layout {layout} run {run}")
                     record = {"mode": mode, "note": note, "task": task["id"], "layout": layout, "run": run,
-                              "models": models, "started_at": started_at,
+                              "models": models, "code": code, "started_at": started_at,
                               "exec_dir": exec_dir.relative_to(runs_dir.parent).as_posix() if exec_dir else None,
                               **run_one(browser, plan, models_kw, task["done_when"], run_info, exec_dir,
-                                       log=print if show else None)}
+                                       log=print if show else None, video=video)}
                     records.append(record)
                     if show:
                         print(f"   run folder: {exec_dir}")
                         print(f"   report: python -m viewer.report {exec_dir.as_posix()}")
+                    if video:
+                        print(f"   video: {exec_dir / 'video.webm'}")
                     # Written line by line so a crash in a long model run keeps the finished runs.
                     out.write(json.dumps(record) + "\n")
                     out.flush()
@@ -258,7 +291,7 @@ def run_suite(mode, runs, out_dir, suite_path=SUITE, tasks=None, layouts=None, r
     server.shutdown()
     server.server_close()
 
-    summary = {"mode": mode, "note": note, "models": models, "runs_per_layout": runs,
+    summary = {"mode": mode, "note": note, "models": models, "code": code, "runs_per_layout": runs,
                "tasks_filter": tasks, "layouts_filter": layouts, "raw": jsonl_path.name, **summarize(records)}
     summary_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     return records, summary, jsonl_path, summary_path
@@ -268,10 +301,10 @@ def print_table(summary):
     def fmt(v):
         return "-" if v is None else str(v)
     print(summary["note"])
-    print(f"{'task':<24}{'layout':<8}{'runs':>5}{'success':>9}{'repair ok':>11}{'steps/task':>12}{'s/step':>9}")
+    print(f"{'task':<24}{'layout':<8}{'runs':>5}{'success':>9}{'repair ok':>11}{'attempts/task':>15}{'s/step':>9}")
     for row in summary["by_task_layout"] + [{"task": "ALL", "layout": "", **summary["overall"]}]:
         print(f"{row['task']:<24}{row['layout']:<8}{row['runs']:>5}{fmt(row['task_success_rate']):>9}"
-              f"{fmt(row['repair_success_rate']):>11}{fmt(row['steps_per_task']):>12}{fmt(row['time_per_step_s']):>9}")
+              f"{fmt(row['repair_success_rate']):>11}{fmt(row['attempts_per_task']):>15}{fmt(row['time_per_step_s']):>9}")
 
 
 def main():
@@ -281,6 +314,9 @@ def main():
     parser.add_argument("--out", type=Path, default=RESULTS)
     parser.add_argument("--tasks", nargs="+", help="task ids to run (default: all)")
     parser.add_argument("--layouts", nargs="+", help="layout ids to run (default: each task's own list)")
+    parser.add_argument("--video", action="store_true",
+                        help="record each run's browser page (not the desktop) to video.webm in its run folder "
+                             "under runs/")
     parser.add_argument("--show", action="store_true",
                         help="headed browser, runner log on the console, and screenshots plus run.json per run "
                              "under runs/ (git-ignored) for viewer.report")
@@ -288,7 +324,8 @@ def main():
     try:
         _, summary, jsonl_path, summary_path = run_suite(args.mode, args.runs, args.out,
                                                          tasks=args.tasks, layouts=args.layouts,
-                                                         runs_dir=RUNS if args.show else None, show=args.show)
+                                                         runs_dir=RUNS if args.show or args.video else None,
+                                                         show=args.show, video=args.video)
     except (llm.LLMError, ValueError) as e:
         print(e, file=sys.stderr)
         return 2
