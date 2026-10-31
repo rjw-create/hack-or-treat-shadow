@@ -1,7 +1,7 @@
 # Shadow
 
 Record yourself doing a browser task once. Shadow turns the recording into a step plan with local
-Gemma 4, runs it, checks each step against a screenshot, and repairs the plan when the page changes.
+Gemma 4, runs it, checks each step, and repairs the plan when the page changes.
 Nothing leaves your machine.
 
 ## How it works
@@ -10,8 +10,9 @@ Nothing leaves your machine.
 2. `shadow.plan` sends the event log and a few screenshots to the planner model. It returns a JSON plan:
    each step has an intent, one action from a fixed list (`goto click fill select press`), a target and
    the expected page state. Shadow validates the plan; the model never writes code.
-3. `shadow.run` performs each step. The checker model looks at a screenshot and confirms the expected
-   state. If a step fails, the planner gets the page's accessibility tree and returns a patched step.
+3. `shadow.run` performs each step and the checker model confirms the expected state. Routine steps are
+   checked against the page's accessibility tree as text, which is faster; the final step and the step right
+   after a repair are checked against a screenshot. Checks run with Gemma 4's thinking turned off. If a step fails, the planner gets the page's accessibility tree and returns a patched step.
 4. `shadow.compile` turns a plan into a readable Playwright script.
 
 The runner only visits `localhost` URLs.
@@ -67,7 +68,8 @@ Each run writes `runs\<run id>\exec\<exec id>\run.json` (format in `docs/interfa
 .venv\Scripts\python -m viewer.report runs\<run id>\exec\<exec id>
 ```
 This writes `report.html` in the same folder; open it straight from disk. It shows a summary, then each step with
-its screenshot, a box around the element the step acted on, the checker's verdict and the time taken. A repaired
+its screenshot, a box around the element the step acted on, the checker's verdict (labelled text or screenshot
+check) and the time taken. A repaired
 step shows the planner's explanation, the old target next to the new one, and the failed and repaired screenshots
 side by side. All model-written text is escaped, and the page has no JavaScript.
 
@@ -100,4 +102,4 @@ Measured time per step with Gemma 4 on this machine: (fill in from the first rea
 - A retry after a failed check can repeat an action (checkboxes use `check()` to avoid toggling twice).
 - Only browser tasks on localhost pages.
 - The demo site is a small fake invoice app with five layouts; real sites will change in more ways than these.
-- The report's target box assumes the runner's default device scale factor (1 CSS pixel per screenshot pixel).
+- The report's target box relies on the runner's device scale factor of 1 (1 CSS pixel per screenshot pixel).

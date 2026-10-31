@@ -17,6 +17,8 @@ from pathlib import Path
 SHOT_PATH = re.compile(r"^shots/[A-Za-z0-9_.-]+\.png$")
 
 STATUS_LABELS = {"passed": "Passed", "repaired": "Repaired", "failed": "Failed", "not_run": "Not run"}
+# check.used names the runner argument; the CLI wires check to a text check and visual_check to a screenshot check.
+CHECK_LABELS = {"check": "Text check", "visual_check": "Screenshot check"}
 
 CSS = """
 :root { --color-bg: #FAFAF7; --color-card: #FFFFFF; --color-text: #1A1A1A; --color-muted: #5E5E5E;
@@ -153,10 +155,10 @@ def attempt_html(exec_dir, step_index, attempt):
     check = attempt.get("check")
     if not attempt.get("action_ok"):
         result = f'<span class="bad">Action failed</span>: <code>{esc(attempt.get("error"))}</code>'
-    elif check and check.get("ok"):
-        result = f'<span class="ok">Check passed</span>: {esc(check.get("reason"))}'
     elif check:
-        result = f'<span class="bad">Check failed</span>: {esc(check.get("reason"))}'
+        kind = CHECK_LABELS.get(check.get("used"), "Check")
+        verdict = '<span class="ok">passed</span>' if check.get("ok") else '<span class="bad">failed</span>'
+        result = f'{esc(kind)} {verdict}: {esc(check.get("reason"))}'
     else:
         result = '<span class="muted">No check</span>'
     passed = bool(attempt.get("action_ok") and check and check.get("ok"))

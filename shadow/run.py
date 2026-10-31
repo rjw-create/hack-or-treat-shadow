@@ -279,9 +279,17 @@ def main():
     parser.add_argument("--layout", type=layout_id, default=None)
     parser.add_argument("--headless", action="store_true")
     args = parser.parse_args()
+    if not args.plan.is_file():
+        print(f"No plan file at {args.plan}. Make one with: python -m shadow.plan runs\\<recording id>")
+        return 2
     plan = json.loads(args.plan.read_text(encoding="utf-8"))
     if args.layout:
         plan = with_layout(plan, args.layout)
+    try:
+        llm.preflight(["planner", "checker"])
+    except llm.LLMError as e:
+        print(f"Not ready: {e}")
+        return 2
 
     rec_dir = args.plan.parent
     exec_id = time.strftime("%Y-%m-%d_%H%M%S")
@@ -298,9 +306,15 @@ def main():
         browser = p.chromium.launch(headless=args.headless)
         # Scale 1 keeps screenshot pixels equal to CSS pixels, which the viewer's bbox overlay relies on.
         page = browser.new_page(device_scale_factor=1)
-        result = run_plan(page, plan, check=model_text_check, visual_check=model_check,
-                          shots_dir=exec_dir / "shots", run_info=run_info)
-        browser.close()
+        try:
+            result = run_plan(page, plan, check=model_text_check, visual_check=model_check,
+                              shots_dir=exec_dir / "shots", run_info=run_info)
+        except llm.LLMError as e:
+            # Ollama stopped or a reply was unusable mid-run; there is no complete run log to save.
+            print(f"Stopped: {e}")
+            return 2
+        finally:
+            browser.close()
 
     save_run(exec_dir, result)
     s = result["log"]["summary"]
