@@ -1,10 +1,12 @@
 """Eval runner tests: summary math on hand-made records, and the whole suite in fake (pipeline) mode."""
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from evals.run_evals import FAKE_NOTE, aggregate, run_suite, select
+from evals.run_evals import FAKE_NOTE, ROOT, aggregate, run_suite, select
 
 
 def record(**overrides):
@@ -47,6 +49,26 @@ class SelectTest(unittest.TestCase):
     def test_unknown_names_are_an_error(self):
         with self.assertRaises(ValueError):
             select(self.SUITE, tasks=["export_invoce"])
+
+
+class SavedRunsTest(unittest.TestCase):
+    """What --show adds besides the headed browser: one exec folder per run that viewer.report can open."""
+
+    def test_saved_run_folder_opens_in_the_viewer(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            records, *_ = run_suite("fake", 1, tmp / "results", tasks=["export_invoice"], layouts=["b"],
+                                    runs_dir=tmp / "runs")
+            exec_dir = tmp / records[0]["exec_dir"]
+            log = json.loads((exec_dir / "run.json").read_text(encoding="utf-8"))
+            self.assertEqual(log["exec_id"], exec_dir.name)
+            self.assertTrue((exec_dir / "plan.repaired.json").exists())
+            shot = log["steps"][4]["attempts"][1]["screenshot"]
+            self.assertTrue((exec_dir / shot).exists())
+            viewer = subprocess.run([sys.executable, "-m", "viewer.report", str(exec_dir)],
+                                    cwd=ROOT, capture_output=True, text=True)
+            self.assertEqual(viewer.returncode, 0, viewer.stderr)
+            self.assertTrue((exec_dir / "report.html").exists())
 
 
 class FakeSuiteTest(unittest.TestCase):
