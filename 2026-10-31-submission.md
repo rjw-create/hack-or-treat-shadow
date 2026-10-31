@@ -1,6 +1,6 @@
 # Shadow: submission text
 
-Hack or Treat 2026, category: Best use of Gemma 4. Draft; the video link is still to fill in.
+Hack or Treat 2026, category: Best use of Gemma 4. Ready to submit once the demo video is uploaded (see Links).
 
 ## One line
 Show Shadow a browser task once; local Gemma 4 turns it into a plan, checks every step, and repairs the plan
@@ -43,35 +43,45 @@ connection or a per-call bill.
 - All model-written text in the report is escaped.
 
 ## Results
-First real run: `gemma4:e4b` as planner and checker on a laptop CPU, task "export the latest unpaid Acme Corp
-invoice", one run per layout. Three runs are an anecdote, not a measurement. Source:
-`results/2026-10-31-gemma-run-notes.md` and the raw run logs it links.
+Real runs with `gemma4:e4b` as planner and checker on a laptop CPU, task "export the latest unpaid Acme Corp
+invoice", one run per layout. One run per layout shows the pipeline working end to end; it is not a success rate.
+Source: `results/2026-10-31-gemma-run-notes.md` and the raw run logs it links
+(`results/2026-10-31-140849-gemma-runs.jsonl`, `results/2026-10-31-141134-gemma-runs.jsonl`).
 
 Task success means the runner reported success **and** the page shows the expected end state.
 
-| Layout | Page change | Task success | Repair of the changed element | Attempts per task | Mean time per step |
+| Layout | Page change | Task success | Repair by Gemma 4 | Attempts per task | Mean time per step |
 | --- | --- | --- | --- | --- | --- |
-| a | none | yes | not needed | 5 | 24.7 s |
-| e | Status dropdown became radio buttons | yes | correct on the first try: changed `select` to `click` on the "Unpaid" radio | 6 | 32.6 s |
-| b | Export button renamed and moved | no: the export happened, but the runner gave up | correct on the first try: "Export selected" became "Download selected" | 10 | 162.9 s |
+| a | none | yes | not needed | 5 | 24.2 s |
+| b | Export button renamed and moved | yes | first try: "Export selected" became "Download selected" (33.4 s) | 6 | 31.1 s |
+| e | Status dropdown became radio buttons | yes | first try: changed `select` to `click` on the "Unpaid" radio (53.4 s) | 6 | 35.1 s |
 
-Attempts count every try, retries included; each plan has 5 steps.
+- **3 of 3 tasks succeeded, and 2 of 2 repairs worked on the first try.** On layout e, Gemma 4 changed the
+  step's action, not just an element name.
+- **The checker agreed with the page every time**, and the only failed actions were the two the layouts were
+  built to break.
+- **Time:** 30.2 s per step on average; a whole 5-step task took 2.0 to 2.9 minutes, almost all of it model time.
+- Attempts count every try, retries included; each plan has 5 steps.
 
-On layout b, both page changes were repaired correctly and the page ended showing "Exported 1 invoice: INV-1042",
-but the screenshot checker returned "not ok" twice while its own explanation said the page matched, so the runner
-gave up. Two steps on that run also timed out on elements the layout did not change, probably because other
-work was using the CPU at the time (not verified). The weak point in this run was the checker, not the repair.
-A fix for the checker and a re-test of layout b are in progress.
+**Earlier run, before two fixes.** The first real run (same setup, earlier the same day) repaired both page
+changes correctly too, but on layout b the screenshot checker said "not ok" on a correct page while its own
+explanation said the page matched, and two unchanged elements hit a 3 s timeout, so the runner gave up. Core then
+changed the checker to give one structured verdict with a text-check second opinion, told it the step has already
+happened, and raised the action timeout to 10 s. Layout b then went from giving up after 814.7 s to passing in
+155.6 s. Both runs are in the notes file above.
 
 The fake-mode files in `results/` are pipeline tests and are not model results.
 
 ## Limits
 - Only localhost pages, and only the demo invoice app has been tested.
-- Every step waits for a model call on a laptop CPU: about 20 to 40 s per step when nothing goes wrong, almost
-  all of it model time, so a 5-step task takes 2 to 3 minutes.
-- The screenshot checker can contradict itself (see layout b above), so a run can give up on a page that is correct.
+- One run per layout so far; there is no success rate yet.
+- Every step waits for a model call on a laptop CPU: about 30 s per step on average, so a 5-step task takes 2 to 3
+  minutes.
+- The checker contradicted itself in the first run. The fixes removed that in the re-test, but three runs cannot
+  rule it out.
 - The recorder covers standard form controls, not every ARIA pattern.
 
 ## Links
 - Code: https://github.com/rjw-create/hack-or-treat-shadow
-- Demo video: [link after recording]
+- Demo video (77 s, model waits sped up with the speed shown on screen): upload from
+  `gemma4-project-surface\runs\video\shadow-backup.mp4` and put the link here.
