@@ -49,6 +49,14 @@ class ReportTest(unittest.TestCase):
         self.assertNotIn('class="bbox', page)
         self.assertNotIn("example.com", page)
 
+    def test_check_kind_is_labelled(self):
+        run, folder = load("repaired_run")
+        page = render(run, folder)
+        self.assertEqual(page.count("Text check <span"), 4)
+        self.assertEqual(page.count("Screenshot check <span"), 1)
+        failed_page = render(*load("failed_run"))
+        self.assertIn('Check <span class="bad">failed</span>', failed_page)
+
     def test_missing_recording_is_not_shown_as_none(self):
         run, folder = load("failed_run")
         self.assertNotIn("of recording", render(run, folder))
