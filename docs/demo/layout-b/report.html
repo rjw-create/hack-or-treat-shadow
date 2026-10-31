@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shadow run 2026-10-31_140851-export_invoice-b-1</title>
+<style>
+:root { --color-bg: #FAFAF7; --color-card: #FFFFFF; --color-text: #1A1A1A; --color-muted: #5E5E5E;
+  --color-line: #E2E2DC; --color-accent: #2F6FEB; --color-danger: #C2410C; --color-ok: #1F7A3A;
+  --color-warn: #8A5A00; --color-del-bg: #FBE4DA; --color-ins-bg: #DDF2E2; --color-highlight: #C026D3;
+  --radius: 12px; }
+@media (prefers-color-scheme: dark) {
+  :root { --color-bg: #15161A; --color-card: #1F2026; --color-text: #ECECEA; --color-muted: #A8A8A3;
+    --color-line: #34353D; --color-accent: #7FA6FF; --color-danger: #FF8A5C; --color-ok: #6FD08C;
+    --color-warn: #F2C46B; --color-del-bg: #4A2618; --color-ins-bg: #1D3B26; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--color-bg); color: var(--color-text);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 24px; margin: 0 0 4px; }
+h2 { font-size: 20px; margin: 0; }
+.muted { color: var(--color-muted); font-size: 14px; }
+.card { background: var(--color-card); border: 1px solid var(--color-line); border-radius: var(--radius);
+  padding: 16px; margin-top: 16px; }
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 16px; }
+.stat { background: var(--color-card); border: 1px solid var(--color-line); border-radius: var(--radius); padding: 12px; }
+.stat b { display: block; font-size: 24px; }
+.verdict { font-size: 20px; font-weight: 700; margin-top: 12px; }
+.ok { color: var(--color-ok); } .bad { color: var(--color-danger); } .warn { color: var(--color-warn); }
+.step-head { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: baseline; }
+.badge { font-size: 14px; font-weight: 600; padding: 2px 10px; border-radius: 999px; border: 1px solid currentColor; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 12px 0 0; }
+dt { color: var(--color-muted); font-size: 14px; }
+dd { margin: 0; overflow-wrap: anywhere; }
+code { font-family: ui-monospace, Consolas, monospace; font-size: 14px; }
+.attempts { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 480px)); gap: 12px;
+  margin-top: 12px; }
+.attempt { border: 1px solid var(--color-line); border-radius: var(--radius); padding: 12px; min-width: 0; }
+.attempt h3 { font-size: 16px; margin: 0 0 8px; }
+.shot { display: block; position: relative; }
+/* Drawn outside the element in a color the demo site doesn't use, so it shows on a blue button too. */
+.bbox { position: absolute; outline: 3px solid var(--color-highlight); outline-offset: 3px; border-radius: 4px;
+  pointer-events: none; }
+.bbox.bad { outline-color: var(--color-danger); }
+.shot-note { margin: 4px 0 0; font-size: 14px; }
+.shot img { display: block; width: 100%; height: auto; border: 1px solid var(--color-line); border-radius: 8px; }
+.noshot { padding: 24px 8px; text-align: center; border: 1px dashed var(--color-line); border-radius: 8px; }
+.repair { margin-top: 12px; padding: 12px; border-left: 4px solid var(--color-accent); background: var(--color-bg);
+  border-radius: 0 8px 8px 0; }
+.repair p { margin: 0 0 8px; }
+del { background: var(--color-del-bg); text-decoration: line-through; padding: 0 4px; border-radius: 4px; }
+ins { background: var(--color-ins-bg); text-decoration: none; padding: 0 4px; border-radius: 4px; font-weight: 600; }
+a { color: var(--color-accent); }
+a:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Export the latest unpaid Acme Corp invoice</h1>
+  <p class="muted">Run 2026-10-31_140851-export_invoice-b-1,
+    layout b, started 2026-10-31T14:08:51-04:00.
+    Planner <code>gemma4:e4b</code>, checker <code>gemma4:e4b</code>.</p>
+  <p class="verdict ok">Run passed</p>
+  <div class="summary"><div class="stat"><span class="muted">Steps passed</span><b>5 / 5</b></div><div class="stat"><span class="muted">Repairs</span><b>1 of 1 worked</b></div><div class="stat"><span class="muted">Time per step</span><b>31.1 s</b></div><div class="stat"><span class="muted">Total time</span><b>155.6 s</b></div></div>
+  <section class="card" aria-labelledby="step-1"><div class="step-head"><h2 id="step-1">Step 1: Open the invoice list</h2><span class="badge ok">Passed</span><span class="muted">27.9 s</span></div><dl><dt>Planned</dt><dd><code>goto http://127.0.0.1:41862/demo_site/invoices.html?layout=b</code></dd><dt>Expected</dt><dd>The Invoices page with a table of invoices</dd></dl><div class="attempts"><div class="attempt"><h3>Attempt 1</h3><a class="shot" href="shots/001-1.png"><img src="shots/001-1.png" alt="Page after step 1, attempt 1" loading="lazy"></a><dl><dt>Did</dt><dd><code>goto http://127.0.0.1:41862/demo_site/invoices.html?layout=b</code></dd><dt>Result</dt><dd>Text check <span class="ok">passed</span>: The page displays an &#x27;Invoices&#x27; heading (level 1) and a table containing multiple invoice rows with details like Invoice ID, Customer, Date, Amount, and Status.</dd><dt>Time</dt><dd>action 0.1 s, check 27.6 s</dd></dl></div></div></section><section class="card" aria-labelledby="step-2"><div class="step-head"><h2 id="step-2">Step 2: Search for the customer</h2><span class="badge ok">Passed</span><span class="muted">22.4 s</span></div><dl><dt>Planned</dt><dd><code>fill searchbox &quot;Search customer&quot; = &quot;Acme&quot;</code></dd><dt>Expected</dt><dd>Only Acme Corp invoices are listed</dd></dl><div class="attempts"><div class="attempt"><h3>Attempt 1</h3><a class="shot" href="shots/002-1.png"><img src="shots/002-1.png" alt="Page after step 2, attempt 1" loading="lazy"><span class="bbox" style="left:17.656%;top:11.000%;width:14.805%;height:4.861%"></span></a><p class="shot-note muted">Box: where <code>fill searchbox &quot;Search customer&quot;</code> was found</p><dl><dt>Did</dt><dd><code>fill searchbox &quot;Search customer&quot; = &quot;Acme&quot;</code></dd><dt>Result</dt><dd>Text check <span class="ok">passed</span>: The table lists three invoices, all of which are from &#x27;Acme Corp&#x27;.</dd><dt>Time</dt><dd>action 0.0 s, check 22.1 s</dd></dl></div></div></section><section class="card" aria-labelledby="step-3"><div class="step-head"><h2 id="step-3">Step 3: Show only unpaid invoices</h2><span class="badge ok">Passed</span><span class="muted">20.6 s</span></div><dl><dt>Planned</dt><dd><code>select combobox &quot;Status&quot; = &quot;Unpaid&quot;</code></dd><dt>Expected</dt><dd>Only unpaid Acme Corp invoices are listed</dd></dl><div class="attempts"><div class="attempt"><h3>Attempt 1</h3><a class="shot" href="shots/003-1.png"><img src="shots/003-1.png" alt="Page after step 3, attempt 1" loading="lazy"><span class="bbox" style="left:33.086%;top:10.861%;width:6.719%;height:5.000%"></span></a><p class="shot-note muted">Box: where <code>select combobox &quot;Status&quot;</code> was found</p><dl><dt>Did</dt><dd><code>select combobox &quot;Status&quot; = &quot;Unpaid&quot;</code></dd><dt>Result</dt><dd>Text check <span class="ok">passed</span>: The combobox for &#x27;Status&#x27; has &#x27;Unpaid&#x27; selected, and the table displays two invoices, both belonging to &#x27;Acme Corp&#x27; and both having the status &#x27;Unpaid&#x27;.</dd><dt>Time</dt><dd>action 0.0 s, check 20.5 s</dd></dl></div></div></section><section class="card" aria-labelledby="step-4"><div class="step-head"><h2 id="step-4">Step 4: Pick the latest invoice</h2><span class="badge ok">Passed</span><span class="muted">15.9 s</span></div><dl><dt>Planned</dt><dd><code>click checkbox &quot;Select INV-1042&quot;</code></dd><dt>Expected</dt><dd>INV-1042 is checked</dd></dl><div class="attempts"><div class="attempt"><h3>Attempt 1</h3><a class="shot" href="shots/004-1.png"><img src="shots/004-1.png" alt="Page after step 4, attempt 1" loading="lazy"><span class="bbox" style="left:18.828%;top:29.431%;width:1.016%;height:1.806%"></span></a><p class="shot-note muted">Box: where <code>click checkbox &quot;Select INV-1042&quot;</code> was found</p><dl><dt>Did</dt><dd><code>click checkbox &quot;Select INV-1042&quot;</code></dd><dt>Result</dt><dd>Text check <span class="ok">passed</span>: The checkbox for INV-1042 is checked.</dd><dt>Time</dt><dd>action 0.4 s, check 15.2 s</dd></dl></div></div></section><section class="card" aria-labelledby="step-5"><div class="step-head"><h2 id="step-5">Step 5: Export the selected invoice</h2><span class="badge warn">Repaired</span><span class="muted">68.8 s</span></div><dl><dt>Planned</dt><dd><code>click button &quot;Export selected&quot;</code></dd><dt>Expected</dt><dd>A message says 1 invoice INV-1042 was exported</dd></dl><div class="attempts"><div class="attempt"><h3>Attempt 1</h3><a class="shot" href="shots/005-1.png"><img src="shots/005-1.png" alt="Page after step 5, attempt 1" loading="lazy"></a><p class="shot-note muted">Target not found on this page</p><dl><dt>Did</dt><dd><code>click button &quot;Export selected&quot;</code></dd><dt>Result</dt><dd><span class="bad">Action failed</span>: <code>Locator.click: Timeout 10000ms exceeded.</code></dd><dt>Time</dt><dd>action 10.0 s, check 0.0 s</dd></dl><div class="repair"><p><strong>Repair</strong> by the planner, <span class="ok">accepted</span>, 33.4 s</p><p>The button name changed from &#x27;Export selected&#x27; to &#x27;Download selected&#x27; on the current page.</p><p><code><del>click button &quot;Export selected&quot;</del></code> &rarr; <code><ins>click button &quot;Download selected&quot;</ins></code></p></div></div><div class="attempt"><h3>Attempt 2</h3><a class="shot" href="shots/005-2.png"><img src="shots/005-2.png" alt="Page after step 5, attempt 2" loading="lazy"><span class="bbox" style="left:70.312%;top:34.917%;width:12.031%;height:4.861%"></span></a><p class="shot-note muted">Box: where <code>click button &quot;Download selected&quot;</code> was found</p><dl><dt>Did</dt><dd><code>click button &quot;Download selected&quot;</code></dd><dt>Result</dt><dd>Screenshot check <span class="ok">passed</span>: Exported 1 invoice: INV-1042</dd><dt>Time</dt><dd>action 0.0 s, check 25.2 s</dd></dl></div></div></section>
+</main>
+</body>
+</html>
