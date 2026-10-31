@@ -7,10 +7,10 @@ live runs cannot fit in 3 minutes. The plan: record live, show the planning and 
 video sped up, then open the real report live. Say out loud that the video is sped up, and keep the speed label
 on screen.
 
-Timings from one real run with a repair, reported by Core on 2026-10-31 (one data point, not an eval result):
-routine text checks 20 to 30 s, the repair 53.7 s, the final screenshot check 29.5 s, 181 s for all 5 steps.
-Replace with the backup video run's own numbers once it is recorded: planning __ s, run layout a __ s,
-run layout b __ s, time per step __ s.
+Measured in the backup video's run (gemma4:e4b on CPU, one run each; source `results/2026-10-31-gemma-run-notes.md`):
+layout a 123 s (24.7 s per step), layout e 163 s (32.6 s per step, including a 45.6 s repair).
+Layout b's run gave up at step 5 even though the repair was right and the page was correct: the screenshot
+checker said "not ok" while its own reason said the page matched. So the demo shows the layout e repair, not b.
 
 ## Before going on stage (not part of the 3 minutes)
 All commands are PowerShell, run from the project folder.
@@ -24,7 +24,8 @@ All commands are PowerShell, run from the project folder.
    $env:SHADOW_PLANNER_MODEL = "<planner tag>"; $env:SHADOW_CHECKER_MODEL = "<checker tag>"
    ```
 3. Browser tab 1: the backup video, paused at the start of the planning segment.
-4. Browser tab 2: `report.html` of the layout b run shown in the video, scrolled to the top.
+4. Browser tab 2: `report.html` of the layout e run shown in the video, scrolled to the top. Tab 3: the layout b
+   report, in case a judge asks about failures.
 5. Close notifications; make the terminal font large enough to read from the back of the room.
 
 ## 0:00 to 0:20: the problem
@@ -52,18 +53,25 @@ fixed list, a target, and what the page should show afterwards. The model writes
 Say: "After every step, Gemma 4 checks the expected state: routine steps from the page's text, and the last step
 from a screenshot, the way a person would look. Layout a is the page as recorded, so every step passes."
 
-## 1:30 to 2:10: run on the changed layout, with the repair (video)
-Say before step 5: "In layout b, the Export button is renamed Download selected and moved below the table.
-A recorded script would stop here."
-When the repair line appears, say: "The click times out. Gemma 4 reads the page's accessibility tree, explains what
-changed, and returns a patched step. Shadow validates it and tries again, and this time a screenshot check
-confirms it worked."
+## 1:30 to 2:10: run on the changed layout, with the repair (video, layout e)
+Say before step 3: "In this version of the page, the Status dropdown has become radio buttons. The recorded step
+selects from a dropdown that no longer exists, so a recorded script would stop here."
+When the repair line appears, say: "The select times out. Gemma 4 reads the page's accessibility tree and explains
+that the filter is now radio buttons. It changes the action itself, from select to click on Unpaid, not just a
+name. Shadow validates the new step and tries again, and a screenshot check confirms the table only shows unpaid
+invoices."
 
 ## 2:10 to 2:50: the report, live
-Switch to the report tab. Point at the summary row (steps passed, repairs, time per step), then scroll to step 5.
+Switch to the report tab (layout e). Point at the summary row (steps passed, repairs, time per step), then scroll
+to step 3.
 
-Say: "Every step has its screenshot and the checker's verdict, labelled text or screenshot check. Here is the repair: the old target is struck out,
-the new one is next to it, and the box on the repaired screenshot shows the button it found."
+Say: "Every step has its screenshot and the checker's verdict, labelled text or screenshot check. Here is the
+repair in Gemma's own words: the old step is struck out, the new one is next to it, and the box on the repaired
+screenshot shows the radio button it found."
+
+If a judge asks about failures: open the layout b report at step 5. The repair to "Download selected" was right
+and the page shows the export, but the checker said "not ok" while its own reason said it matched. Say so plainly;
+it is the next thing to fix.
 
 ## 2:50 to 3:00: close
 Say: "Learned from one demonstration, checked and repaired by Gemma 4, all running on this laptop. The
@@ -106,8 +114,8 @@ runner with its `--show` flag, so the same run gives the video, the reports and 
    ```
    .venv\Scripts\python -m viewer.report <exec folder>
    ```
-   Open the layout b `report.html` in a browser tab; that is tab 2 for the demo.
+   Open the layout e `report.html` in a browser tab; that is tab 2 for the demo.
 6. Copy the time per step and run times from the run's printed output into the "Measured" line at the top of this file.
-7. In Clipchamp: keep the record segment and the step-5 repair of layout b at normal speed, speed up or cut the
+7. In Clipchamp: keep the record segment and the step-3 repair of layout e at normal speed, speed up or cut the
    rest, and keep a visible speed label on every sped-up part. Export at 1080p.
 8. Save the video outside the repo and do not commit it; put its link in `2026-10-31-submission.md`.
