@@ -1,2 +1,6 @@
 .env
 .env.*
+.venv/
+__pycache__/
+# Recordings contain screenshots of whatever was on screen.
+runs/

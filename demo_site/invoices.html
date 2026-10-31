@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ledgerly Invoices (demo)</title>
+<style>
+  :root { --bg: #f6f7f9; --card: #fff; --ink: #1d2330; --muted: #5b6475; --line: #dde1e8; --accent: #2f5bd3; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.4 system-ui, sans-serif; background: var(--bg); color: var(--ink); }
+  main { max-width: 860px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 20px; margin: 0 0 12px; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; margin-bottom: 12px; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field label { font-size: 13px; color: var(--muted); }
+  input[type=search], select { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; min-width: 0; }
+  button { font: inherit; padding: 7px 14px; border: 0; border-radius: 6px; background: var(--accent); color: #fff; cursor: pointer; }
+  .table-wrap { overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: 8px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { font-size: 13px; color: var(--muted); font-weight: 600; }
+  .footer-actions { margin-top: 12px; display: flex; justify-content: flex-end; }
+  #status { margin-top: 12px; min-height: 1.4em; font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Invoices</h1>
+  <div class="toolbar" id="toolbar">
+    <div class="field"><label for="search">Search customer</label><input type="search" id="search" placeholder="Customer name"></div>
+    <div class="field"><label for="status-filter">Status</label>
+      <select id="status-filter">
+        <option>All</option>
+        <option>Paid</option>
+        <option>Unpaid</option>
+      </select>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th></th><th>Invoice</th><th>Customer</th><th>Date</th><th>Amount (USD)</th><th>Status</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <div class="footer-actions" id="footer-actions"></div>
+  <p id="status" role="status" aria-live="polite"></p>
+</main>
+<script>
+  // Fixed fake data; nothing here is user-supplied except the search text, which is only compared, never rendered as HTML.
+  const INVOICES = [
+    { id: "INV-1038", customer: "Acme Corp", date: "2026-09-02", amount_usd: 1200.00, status: "Paid" },
+    { id: "INV-1040", customer: "Globex", date: "2026-09-18", amount_usd: 860.50, status: "Unpaid" },
+    { id: "INV-1041", customer: "Acme Corp", date: "2026-10-03", amount_usd: 450.00, status: "Unpaid" },
+    { id: "INV-1042", customer: "Acme Corp", date: "2026-10-27", amount_usd: 2310.75, status: "Unpaid" },
+    { id: "INV-1043", customer: "Initech", date: "2026-10-29", amount_usd: 99.00, status: "Paid" },
+  ];
+
+  // ?layout=b moves and renames the export button. This is the page change Shadow has to recover from.
+  const layoutB = new URLSearchParams(location.search).get("layout") === "b";
+  const exportButton = document.createElement("button");
+  exportButton.type = "button";
+  exportButton.textContent = layoutB ? "Download selected" : "Export selected";
+  (layoutB ? document.getElementById("footer-actions") : document.getElementById("toolbar")).appendChild(exportButton);
+
+  const search = document.getElementById("search");
+  const statusFilter = document.getElementById("status-filter");
+  const rows = document.getElementById("rows");
+  const statusLine = document.getElementById("status");
+
+  function cell(text) {
+    const td = document.createElement("td");
+    td.textContent = text;
+    return td;
+  }
+
+  function render() {
+    const query = search.value.trim().toLowerCase();
+    const wanted = statusFilter.value;
+    rows.replaceChildren();
+    for (const inv of INVOICES) {
+      if (query && !inv.customer.toLowerCase().includes(query)) continue;
+      if (wanted !== "All" && inv.status !== wanted) continue;
+      const tr = document.createElement("tr");
+      const boxCell = document.createElement("td");
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.value = inv.id;
+      box.setAttribute("aria-label", "Select " + inv.id);
+      boxCell.appendChild(box);
+      tr.append(boxCell, cell(inv.id), cell(inv.customer), cell(inv.date), cell(inv.amount_usd.toFixed(2)), cell(inv.status));
+      rows.appendChild(tr);
+    }
+  }
+
+  exportButton.addEventListener("click", () => {
+    const picked = [...rows.querySelectorAll("input[type=checkbox]:checked")].map(b => b.value);
+    statusLine.textContent = picked.length
+      ? "Exported " + picked.length + " invoice" + (picked.length > 1 ? "s" : "") + ": " + picked.join(", ")
+      : "Nothing selected";
+  });
+  search.addEventListener("input", render);
+  statusFilter.addEventListener("change", render);
+  render();
+</script>
+</body>
+</html>
