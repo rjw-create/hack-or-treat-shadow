@@ -26,11 +26,14 @@ from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import sync_playwright
 
 from shadow import llm
-from shadow.run import model_check, model_repair, run_plan, with_layout
+from shadow.run import model_check, model_repair, model_text_check, run_plan, save_run, with_layout
 
 ROOT = Path(__file__).resolve().parent.parent
 SUITE = ROOT / "evals" / "suite.json"
 RESULTS = ROOT / "results"
+RUNS = ROOT / "runs"
+# Fake repairs start once an action times out; real runs keep the runner's own default.
+FAKE_STEP_TIMEOUT_MS = 500
 END_STATE_TIMEOUT_MS = 3000
 FAKE_NOTE = ("PIPELINE TEST, NOT A MODEL RESULT: the fake checker always says ok and the fake repairer "
              "knows the answer. These numbers say nothing about Gemma's ability.")
@@ -88,12 +91,19 @@ def end_state_ok(page, done_when):
     return (text or "").strip() == done_when["text"]
 
 
-def run_one(browser, plan, check, repair, done_when, run_info):
-    """Run one plan in a fresh page; returns metrics plus the runner's full run.json as run_log."""
+def run_one(browser, plan, models_kw, done_when, run_info, exec_dir=None, log=None):
+    """Run one plan in a fresh page; returns metrics plus the runner's full run.json as run_log.
+    models_kw: the check/repair/visual_check/step_timeout_ms arguments for run_plan().
+    With exec_dir, also saves screenshots and run.json there in the folder layout the viewer reads."""
+    shots_dir = None
+    if exec_dir:
+        shots_dir = exec_dir / "shots"
+        shots_dir.mkdir(parents=True)
     page = browser.new_page()
     error = None
     try:
-        result = run_plan(page, plan, check=check, repair=repair, log=lambda msg: None, run_info=run_info)
+        result = run_plan(page, plan, **models_kw, log=log or (lambda msg: None),
+                          shots_dir=shots_dir, run_info=run_info)
     except Exception as e:  # e.g. Ollama down or bad JSON: end this run, keep the suite going
         first_line = str(e).splitlines()[0] if str(e) else ""
         error = f"{type(e).__name__}: {first_line}"
@@ -108,6 +118,8 @@ def run_one(browser, plan, check, repair, done_when, run_info):
                 "attempts_per_step": [], "repairs_attempted": 0, "repairs_succeeded": 0, "duration_s": None,
                 "step_times_s": [], "time_per_step_s": None, "run_log": None}
 
+    if exec_dir:
+        save_run(exec_dir, result)
     run_log = result["log"]
     ran = [s for s in run_log["steps"] if s["status"] != "not_run"]
     summary = run_log["summary"]
@@ -175,8 +187,22 @@ def select(suite, tasks=None, layouts=None):
     return {**suite, "tasks": picked}
 
 
-def run_suite(mode, runs, out_dir, suite_path=SUITE, tasks=None, layouts=None):
-    """Run the suite, or the chosen tasks/layouts of it; returns (records, summary, jsonl_path, summary_path)."""
+def warm_up(browser, suite, suite_path, port):
+    """Load the first task's page once, untimed. A cold browser (especially headed) can miss the runner's 3 s
+    goto timeout, which would count as a failed step and trigger a needless repair in the first run."""
+    if not suite["tasks"]:
+        return
+    first = json.loads((suite_path.parent / suite["tasks"][0]["plan"]).read_text(encoding="utf-8"))
+    url = next(s["value"] for s in point_at(first, port)["steps"] if s["action"] == "goto")
+    page = browser.new_page()
+    page.goto(url)
+    page.close()
+
+
+def run_suite(mode, runs, out_dir, suite_path=SUITE, tasks=None, layouts=None, runs_dir=None, show=False):
+    """Run the suite, or the chosen tasks/layouts of it; returns (records, summary, jsonl_path, summary_path).
+    runs_dir: also save each run's screenshots and run.json under it, in the layout viewer.report reads.
+    show: headed browser and the runner's log on the console, for filming a run."""
     suite = select(json.loads(suite_path.read_text(encoding="utf-8")), tasks, layouts)
     if mode == "fake":
         models = {"planner": "fake", "checker": "fake"}
@@ -191,24 +217,40 @@ def run_suite(mode, runs, out_dir, suite_path=SUITE, tasks=None, layouts=None):
 
     server = start_server()
     port = server.server_address[1]
+    if show:
+        print(f"Demo server started by this runner at http://127.0.0.1:{port}/ (no separate http.server needed).")
+        print(f"Run folders go to {runs_dir / f'eval-{stamp}' / 'exec'}")
     records = []
     with sync_playwright() as p, jsonl_path.open("w", encoding="utf-8") as out:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(headless=not show)
+        warm_up(browser, suite, suite_path, port)
         for task in suite["tasks"]:
             base = json.loads((suite_path.parent / task["plan"]).read_text(encoding="utf-8"))
             for layout in task["layouts"]:
                 plan = with_layout(point_at(base, port), layout)
                 if mode == "fake":
-                    check, repair = always_ok, oracle_repair(task.get("oracle_fixes", {}).get(layout, {}))
+                    models_kw = {"check": always_ok, "step_timeout_ms": FAKE_STEP_TIMEOUT_MS,
+                                 "repair": oracle_repair(task.get("oracle_fixes", {}).get(layout, {}))}
                 else:
-                    check, repair = model_check, model_repair
+                    # Same checks as `python -m shadow.run`, so eval numbers describe what users get.
+                    models_kw = {"check": model_text_check, "visual_check": model_check, "repair": model_repair}
                 for run in range(1, runs + 1):
                     started_at = datetime.now().astimezone().isoformat(timespec="seconds")
-                    run_info = {"layout": layout, "models": models}
+                    # The task, layout and run number in the exec id keep fast fake runs from colliding.
+                    exec_id = f"{datetime.now():%Y-%m-%d_%H%M%S}-{task['id']}-{layout}-{run}"
+                    exec_dir = runs_dir / f"eval-{stamp}" / "exec" / exec_id if runs_dir else None
+                    run_info = {"exec_id": exec_id if runs_dir else None, "layout": layout, "models": models}
+                    if show:
+                        print(f"== {task['id']} layout {layout} run {run}")
                     record = {"mode": mode, "note": note, "task": task["id"], "layout": layout, "run": run,
                               "models": models, "started_at": started_at,
-                              **run_one(browser, plan, check, repair, task["done_when"], run_info)}
+                              "exec_dir": exec_dir.relative_to(runs_dir.parent).as_posix() if exec_dir else None,
+                              **run_one(browser, plan, models_kw, task["done_when"], run_info, exec_dir,
+                                       log=print if show else None)}
                     records.append(record)
+                    if show:
+                        print(f"   run folder: {exec_dir}")
+                        print(f"   report: python -m viewer.report {exec_dir.as_posix()}")
                     # Written line by line so a crash in a long model run keeps the finished runs.
                     out.write(json.dumps(record) + "\n")
                     out.flush()
@@ -239,10 +281,14 @@ def main():
     parser.add_argument("--out", type=Path, default=RESULTS)
     parser.add_argument("--tasks", nargs="+", help="task ids to run (default: all)")
     parser.add_argument("--layouts", nargs="+", help="layout ids to run (default: each task's own list)")
+    parser.add_argument("--show", action="store_true",
+                        help="headed browser, runner log on the console, and screenshots plus run.json per run "
+                             "under runs/ (git-ignored) for viewer.report")
     args = parser.parse_args()
     try:
         _, summary, jsonl_path, summary_path = run_suite(args.mode, args.runs, args.out,
-                                                         tasks=args.tasks, layouts=args.layouts)
+                                                         tasks=args.tasks, layouts=args.layouts,
+                                                         runs_dir=RUNS if args.show else None, show=args.show)
     except (llm.LLMError, ValueError) as e:
         print(e, file=sys.stderr)
         return 2
