@@ -49,8 +49,9 @@ REPAIR_SCHEMA = {"type": "object", "required": ["explanation", "step"], "propert
     }},
 }}
 
-CHECK_RULES = """The expected state is a description written in advance. Judge whether the page means the same
-thing; different wording of the same fact is not a contradiction.
+CHECK_RULES = """The step has already been performed; you see the page afterwards, so judge only the page's state,
+not whether you can see the action happen. The expected state is a description written in advance. Judge
+whether the page means the same thing; different wording of the same fact is not a contradiction.
 Reply with JSON:
 - "observed": what the page shows that relates to the expected state
 - "contradiction": what the page shows that conflicts with the expected state, or "" if nothing does
