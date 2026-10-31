@@ -68,14 +68,14 @@ explains what changed, and returns a patched step. The runner validates it and t
 Measured run time, layout b: (fill in after rehearsal)
 
 ## 2:15 to 2:50: the report
-Do, in terminal 3 (use the exec id from the run):
+Do, in terminal 3 (the run's last lines print `Run log: runs\<run id>\exec\<exec id>\run.json`; use that folder):
 ```
 .venv\Scripts\python -m viewer.report runs\<run id>\exec\<exec id>
 ```
 Open the `report.html` it prints. Scroll to step 5.
 
 Say: "The report shows each step with its screenshot and check verdict. Here is the repair: the old target is
-struck out, the new target is next to it, and the failed and repaired screenshots are side by side."
+struck out, the new target is next to it, and on the repaired screenshot the box shows the button it found."
 Point at the summary row: steps passed, repairs, time per step.
 
 ## 2:50 to 3:00: close
@@ -90,8 +90,6 @@ patched plan as a plain Playwright script, so you can see what it will do before
 | The browser does not open, or the server is down | Switch to the backup video and narrate over it. |
 | `viewer.report` says there is no run.json | Open the pre-made report.html tab from setup step 4. |
 
-## Dependencies on work that is not merged yet
-- The runner does not write `run.json` or the `exec/<id>/` folder yet (see `docs/interface.md`). Until it does,
-  the 2:15 segment can only use the pre-made fixture report (`viewer/fixtures/repaired_run/report.html`), with placeholder
-  screenshots. Check this before rehearsing.
-- The backup video does not exist yet; it is recorded in the final hour from a good real run.
+## Still to do before the demo
+- Rehearse once with the real models and fill in the "Measured" lines.
+- Record the backup video from a good real run (final hour).
