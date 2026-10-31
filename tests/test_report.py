@@ -37,6 +37,22 @@ class ReportTest(unittest.TestCase):
         self.assertNotIn("secret.png", page)
         self.assertNotIn('href="javascript:', page)
 
+    def test_bbox_is_drawn_in_percent_of_the_screenshot(self):
+        run, folder = load("repaired_run")
+        page = render(run, folder)
+        # 470/640 px and 330/400 px in the 640x400 placeholder screenshot.
+        self.assertIn('style="left:73.438%;top:82.500%;width:23.438%;height:8.500%"', page)
+
+    def test_non_numeric_bbox_is_dropped(self):
+        run, folder = load("failed_run")
+        page = render(run, folder)
+        self.assertNotIn('class="bbox', page)
+        self.assertNotIn("example.com", page)
+
+    def test_missing_recording_is_not_shown_as_none(self):
+        run, folder = load("failed_run")
+        self.assertNotIn("of recording", render(run, folder))
+
     def test_failed_run_states(self):
         run, folder = load("failed_run")
         page = render(run, folder)

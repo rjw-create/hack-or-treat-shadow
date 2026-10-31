@@ -20,7 +20,7 @@
      "attempts": [
        {"attempt": 1, "step": {"intent": "Search for the customer", "action": "fill", "target": {"role": "searchbox", "name": "Search customer"}, "value": "Acme", "expected": "Only Acme Corp invoices are listed"},
         "action_ok": true, "error": null, "check": {"ok": false, "reason": "All customers still shown <img src=x onerror=alert(1)>"},
-        "screenshot": "shots/002-1.png", "action_s": 0.1, "check_s": 5.4,
+        "screenshot": "shots/002-1.png", "bbox": {"x": "1;background:url(https://example.com/x)", "y": 0, "width": 10, "height": 10}, "action_s": 0.1, "check_s": 5.4,
         "repair": {"explanation": "Search box moved into a filter panel <script>alert(1)</script>",
                    "new_step": {"intent": "Search for the customer", "action": "fill", "target": {"role": "textbox", "name": "Filter \"customers\""}, "value": "Acme", "expected": "Only Acme Corp invoices are listed"},
                    "accepted": true, "repair_s": 9.8}},
