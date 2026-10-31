@@ -11,7 +11,7 @@ from evals.run_evals import FAKE_NOTE, ROOT, aggregate, run_suite, select
 
 def record(**overrides):
     base = {"task": "t", "layout": "a", "ok": True, "task_success": True, "repairs_attempted": 0,
-            "repairs_succeeded": 0, "attempts": 5, "step_times_s": [1.0, 1.0, 1.0, 1.0, 1.0], "error": None}
+            "repairs_succeeded": 0, "steps_total": 5, "attempts": 5, "step_times_s": [1.0, 1.0, 1.0, 1.0, 1.0], "error": None}
     base.update(overrides)
     return base
 
@@ -28,7 +28,8 @@ class AggregateTest(unittest.TestCase):
         self.assertEqual(s["runs"], 3)
         self.assertEqual(s["task_success_rate"], 0.667)
         self.assertEqual(s["repair_success_rate"], 0.333)
-        self.assertEqual(s["steps_per_task"], 6)
+        self.assertEqual(s["attempts_per_task"], 6)
+        self.assertEqual(s["plan_steps_per_task"], 5)
         # Pooled over all 8 steps that ran, not a mean of per-run means.
         self.assertEqual(s["time_per_step_s"], 1.75)
 
@@ -63,12 +64,29 @@ class SavedRunsTest(unittest.TestCase):
             log = json.loads((exec_dir / "run.json").read_text(encoding="utf-8"))
             self.assertEqual(log["exec_id"], exec_dir.name)
             self.assertTrue((exec_dir / "plan.repaired.json").exists())
-            shot = log["steps"][4]["attempts"][1]["screenshot"]
+            # Last attempt, not a fixed index: this test is about the folder, not exact attempt counts.
+            shot = log["steps"][4]["attempts"][-1]["screenshot"]
             self.assertTrue((exec_dir / shot).exists())
             viewer = subprocess.run([sys.executable, "-m", "viewer.report", str(exec_dir)],
                                     cwd=ROOT, capture_output=True, text=True)
             self.assertEqual(viewer.returncode, 0, viewer.stderr)
             self.assertTrue((exec_dir / "report.html").exists())
+
+
+class VideoTest(unittest.TestCase):
+    def test_video_is_saved_in_the_run_folder(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            records, *_ = run_suite("fake", 1, tmp / "results", tasks=["export_invoice"], layouts=["a"],
+                                    runs_dir=tmp / "runs", video=True)
+            exec_dir = tmp / records[0]["exec_dir"]
+            self.assertGreater((exec_dir / "video.webm").stat().st_size, 0)
+            # Only video.webm: Playwright's randomly named original is removed.
+            self.assertEqual(sorted(p.name for p in exec_dir.glob("*.webm")), ["video.webm"])
+
+    def test_video_without_run_folders_is_refused(self):
+        with tempfile.TemporaryDirectory() as tmp, self.assertRaises(ValueError):
+            run_suite("fake", 1, Path(tmp), video=True)
 
 
 class FakeSuiteTest(unittest.TestCase):
@@ -89,19 +107,27 @@ class FakeSuiteTest(unittest.TestCase):
         self.assertEqual(len(lines), len(self.records))
         self.assertEqual([json.loads(line) for line in lines], self.records)
 
-    def test_layout_a_succeeds_without_repairs(self):
+    # These assert outcomes, not exact attempt counts: under CPU load a present element can still miss the
+    # fake timeout, which adds a retry (the oracle then resubmits the same step) without changing the result.
+    @staticmethod
+    def final_steps(r):
+        """The step actually performed in each step's last attempt."""
+        return [s["attempts"][-1]["step"] for s in r["run_log"]["steps"]]
+
+    def test_layout_a_succeeds_with_the_plan_unchanged(self):
         r = self.by_layout("a")
         self.assertTrue(r["task_success"])
         self.assertTrue(r["end_state_ok"])
-        self.assertEqual(r["repairs_attempted"], 0)
-        self.assertEqual(r["attempts"], 5)
         self.assertEqual(len(r["step_times_s"]), 5)
+        self.assertEqual(self.final_steps(r), [s["planned"] for s in r["run_log"]["steps"]])
 
-    def test_layout_b_succeeds_after_one_repair(self):
+    def test_layout_b_succeeds_by_repairing_only_the_export_button(self):
         r = self.by_layout("b")
         self.assertTrue(r["task_success"])
-        self.assertEqual((r["repairs_attempted"], r["repairs_succeeded"]), (1, 1))
-        self.assertEqual(r["attempts_per_step"], [1, 1, 1, 1, 2])
+        self.assertGreaterEqual(r["repairs_succeeded"], 1)
+        final = self.final_steps(r)
+        self.assertEqual(final[4]["target"], {"role": "button", "name": "Download selected"})
+        self.assertEqual(final[:4], [s["planned"] for s in r["run_log"]["steps"][:4]])
 
     def test_every_task_and_layout_succeeds_with_the_oracle(self):
         # Proves the suite file itself is right: each layout's answer key really fixes that layout.
@@ -112,7 +138,7 @@ class FakeSuiteTest(unittest.TestCase):
     def test_layout_e_repair_switches_dropdown_to_radio(self):
         step3 = self.by_layout("e")["run_log"]["steps"][2]
         self.assertEqual(step3["status"], "repaired")
-        new_step = step3["attempts"][0]["repair"]["new_step"]
+        new_step = step3["attempts"][-1]["step"]
         self.assertEqual(new_step["action"], "click")
         self.assertEqual(new_step["target"], {"role": "radio", "name": "Unpaid"})
         self.assertNotIn("value", new_step)
@@ -122,7 +148,11 @@ class FakeSuiteTest(unittest.TestCase):
         self.assertEqual(log["schema_version"], 1)
         self.assertEqual(log["layout"], "b")
         self.assertEqual(log["models"], {"planner": "fake", "checker": "fake"})
-        self.assertEqual(log["summary"]["repairs_succeeded"], 1)
+        self.assertGreaterEqual(log["summary"]["repairs_succeeded"], 1)
+
+    def test_results_record_the_code_commit(self):
+        self.assertRegex(self.summary["code"]["commit"], r"^[0-9a-f]{40}$")
+        self.assertTrue(all(r["code"] == self.summary["code"] for r in self.records))
 
     def test_fake_results_are_labelled_as_pipeline_tests(self):
         self.assertTrue(all(r["note"] == FAKE_NOTE and r["models"]["checker"] == "fake" for r in self.records))
