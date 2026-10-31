@@ -1,95 +1,81 @@
-# Demo script (3 minutes, live)
+# Demo script (3 minutes)
 
-What to click and what to say, timed to the minute. Times are targets until we rehearse with the real
-models; after the first rehearsal, write the measured plan and run times into the "Measured" lines.
+What to click and what to say, timed to the minute.
+
+Each Gemma 4 screenshot check is expected to take tens of seconds on this laptop's CPU, so one 5-step run
+takes minutes and two live runs cannot fit in 3 minutes. The plan: record live, show the planning and the two
+runs from the backup video sped up, then open the real report live. Say out loud that the video is sped up, and
+keep the speed label on screen.
+
+Measured with Gemma 4 on this machine (fill in after the first real run): planning __ s, run layout a __ s,
+run layout b __ s, time per step __ s.
 
 ## Before going on stage (not part of the 3 minutes)
-All commands are PowerShell, run from the project folder. Use three terminals, already open.
+All commands are PowerShell, run from the project folder.
 
 1. Terminal 1, start the demo site and leave it running:
    ```
    .venv\Scripts\python -m http.server 8000
    ```
-2. Set the model tags in terminals 2 and 3:
+2. Terminal 2, set the model tags:
    ```
    $env:SHADOW_PLANNER_MODEL = "<planner tag>"; $env:SHADOW_CHECKER_MODEL = "<checker tag>"
    ```
-3. Warm up both models with one throwaway run of a known-good plan, so the first live call does not pay the model load time.
-4. Have a finished, good run ready as a safety net: a `runs/<id>/` folder with `plan.json` and an `exec/` folder with its
-   `report.html` already generated, open in a browser tab.
-5. Have the backup video open in a paused player in another tab.
-6. Close notifications; set the terminal font large enough to read from the back of the room.
+3. Browser tab 1: the backup video, paused at the start of the planning segment.
+4. Browser tab 2: `report.html` of the layout b run shown in the video, scrolled to the top.
+5. Close notifications; make the terminal font large enough to read from the back of the room.
 
-## 0:00 to 0:30: the problem and the recording
+## 0:00 to 0:20: the problem
 Say: "Browser automations break as soon as a page changes. Shadow learns a task from watching you do it once,
-and when the page changes, a local Gemma 4 model repairs the plan. Nothing leaves this laptop."
+and when the page changes, Gemma 4 running on this laptop repairs the plan. The screenshots never leave the machine."
 
+## 0:20 to 0:50: record the task, live
 Do, in terminal 2:
 ```
 .venv\Scripts\python -m shadow.record http://localhost:8000/demo_site/invoices.html
 ```
 In the browser that opens: type "Acme" in Search customer, set Status to Unpaid, tick INV-1042, click Export selected.
-Close the browser to stop recording.
+Close the browser window to stop recording.
 
-Say while clicking: "It records each action by role and accessible name, like button 'Export selected', not by pixel position or CSS selector."
+Say while clicking: "It records each action by role and accessible name, like button 'Export selected', not by pixel
+position or CSS selector."
 
-## 0:30 to 1:00: the plan
-Do, in terminal 2 (use the run id the recorder printed):
-```
-.venv\Scripts\python -m shadow.plan runs\<run id>
-```
-Then open `runs\<run id>\plan.json`.
+## 0:50 to 1:10: the plan (video)
+Switch to the video tab and play.
 
-Say: "Gemma 4 turns the recording and a few screenshots into a plan: each step has an intent, one action from a fixed list,
-a target, and what the page should look like afterwards. The model writes JSON that we validate, never code."
+Say: "This is the same recording turned into a plan by Gemma 4, sped up. Each step has an intent, one action from a
+fixed list, a target, and what the page should show afterwards. The model writes JSON that we validate, never code."
 
-Measured planning time: (fill in after rehearsal)
+## 1:10 to 1:30: run on the normal layout (video)
+Say: "For every step, Gemma 4 looks at a screenshot and checks the expected state. Layout a is the page as recorded,
+so every step passes."
 
-## 1:00 to 1:30: run on the normal layout
-Do:
-```
-.venv\Scripts\python -m shadow.run runs\<run id>\plan.json --layout a
-```
-Say while it runs: "For every step, a second Gemma 4 call looks at a screenshot and checks the expected state.
-The checker sees the page as an image, so it confirms what is on the screen, not only what is in the code."
-
-Measured run time, layout a: (fill in after rehearsal)
-
-## 1:30 to 2:15: run on the changed layout, showing the repair
-Do:
-```
-.venv\Scripts\python -m shadow.run runs\<run id>\plan.json --layout b
-```
-Say before step 5: "In layout b the Export button is renamed to Download selected and moved below the table.
+## 1:30 to 2:10: run on the changed layout, with the repair (video)
+Say before step 5: "In layout b, the Export button is renamed Download selected and moved below the table.
 A recorded script would stop here."
-When the repair line prints, point at it and say: "The click times out. The planner reads the page's accessibility tree,
-explains what changed, and returns a patched step. The runner validates it and tries again, and the check passes."
+When the repair line appears, say: "The click times out. Gemma 4 reads the page's accessibility tree, explains what
+changed, and returns a patched step. Shadow validates it and tries again, and the check passes."
 
-Measured run time, layout b: (fill in after rehearsal)
+## 2:10 to 2:50: the report, live
+Switch to the report tab. Point at the summary row (steps passed, repairs, time per step), then scroll to step 5.
 
-## 2:15 to 2:50: the report
-Do, in terminal 3 (the run's last lines print `Run log: runs\<run id>\exec\<exec id>\run.json`; use that folder):
-```
-.venv\Scripts\python -m viewer.report runs\<run id>\exec\<exec id>
-```
-Open the `report.html` it prints. Scroll to step 5.
-
-Say: "The report shows each step with its screenshot and check verdict. Here is the repair: the old target is
-struck out, the new target is next to it, and on the repaired screenshot the box shows the button it found."
-Point at the summary row: steps passed, repairs, time per step.
+Say: "Every step has its screenshot and the checker's verdict. Here is the repair: the old target is struck out,
+the new one is next to it, and the box on the repaired screenshot shows the button it found."
 
 ## 2:50 to 3:00: close
-Say: "Learned from one demonstration, checked by vision and repaired by a local Gemma 4. It also writes out the
-patched plan as a plain Playwright script, so you can see what it will do before you run it."
+Say: "Learned from one demonstration, checked by vision, repaired by Gemma 4, all running on this laptop. The
+patched plan is also written out as a plain Playwright script, so you can read what it will do."
 
 ## If something goes wrong
 | Problem | What to do |
 | --- | --- |
-| Planning or a run is still going after 45 s | Say "The model is still thinking, so here is the same run recorded earlier", switch to the backup video tab and play from the matching point. |
-| A run fails | Say "This is the case the report is built for" and open the failed run's report.html. If no report was written, switch to the backup video. |
-| The browser does not open, or the server is down | Switch to the backup video and narrate over it. |
-| `viewer.report` says there is no run.json | Open the pre-made report.html tab from setup step 4. |
+| The recorder does not open a browser, or the server is down | Skip to 0:50 and play the video from the start; it includes the recording. |
+| The video will not play | Open the report tab and walk through it step by step; it shows the same run. |
+| Running short of time | Skip the layout a segment (1:10 to 1:30). |
 
-## Still to do before the demo
-- Rehearse once with the real models and fill in the "Measured" lines.
-- Record the backup video from a good real run (final hour).
+## Recording the backup video (final hour)
+- Needs Jackson's go-ahead for real model runs (shared GPU). One task, layouts a, b and e.
+- Record the screen at normal speed, then speed up the waits in the edit and show the speed on screen (for example "8x").
+- Keep the terminal and the browser both visible during the runs.
+- Afterwards, generate the reports with `python -m viewer.report` for the same runs, so tab 2 matches the video.
+- Fill in the "Measured" line at the top from the run's own output.
