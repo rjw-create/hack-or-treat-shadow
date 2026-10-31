@@ -2,12 +2,14 @@
 
 What to click and what to say, timed to the minute.
 
-Each Gemma 4 screenshot check is expected to take tens of seconds on this laptop's CPU, so one 5-step run
-takes minutes and two live runs cannot fit in 3 minutes. The plan: record live, show the planning and the two
-runs from the backup video sped up, then open the real report live. Say out loud that the video is sped up, and
-keep the speed label on screen.
+Gemma 4 calls take tens of seconds each on this laptop's CPU, so one 5-step run takes about 3 minutes and two
+live runs cannot fit in 3 minutes. The plan: record live, show the planning and the two runs from the backup
+video sped up, then open the real report live. Say out loud that the video is sped up, and keep the speed label
+on screen.
 
-Measured with Gemma 4 on this machine (fill in after the first real run): planning __ s, run layout a __ s,
+Timings from one real run with a repair, reported by Core on 2026-10-31 (one data point, not an eval result):
+routine text checks 20 to 30 s, the repair 53.7 s, the final screenshot check 29.5 s, 181 s for all 5 steps.
+Replace with the backup video run's own numbers once it is recorded: planning __ s, run layout a __ s,
 run layout b __ s, time per step __ s.
 
 ## Before going on stage (not part of the 3 minutes)
@@ -47,23 +49,24 @@ Say: "This is the same recording turned into a plan by Gemma 4, sped up. Each st
 fixed list, a target, and what the page should show afterwards. The model writes JSON that we validate, never code."
 
 ## 1:10 to 1:30: run on the normal layout (video)
-Say: "For every step, Gemma 4 looks at a screenshot and checks the expected state. Layout a is the page as recorded,
-so every step passes."
+Say: "After every step, Gemma 4 checks the expected state: routine steps from the page's text, and the last step
+from a screenshot, the way a person would look. Layout a is the page as recorded, so every step passes."
 
 ## 1:30 to 2:10: run on the changed layout, with the repair (video)
 Say before step 5: "In layout b, the Export button is renamed Download selected and moved below the table.
 A recorded script would stop here."
 When the repair line appears, say: "The click times out. Gemma 4 reads the page's accessibility tree, explains what
-changed, and returns a patched step. Shadow validates it and tries again, and the check passes."
+changed, and returns a patched step. Shadow validates it and tries again, and this time a screenshot check
+confirms it worked."
 
 ## 2:10 to 2:50: the report, live
 Switch to the report tab. Point at the summary row (steps passed, repairs, time per step), then scroll to step 5.
 
-Say: "Every step has its screenshot and the checker's verdict. Here is the repair: the old target is struck out,
+Say: "Every step has its screenshot and the checker's verdict, labelled text or screenshot check. Here is the repair: the old target is struck out,
 the new one is next to it, and the box on the repaired screenshot shows the button it found."
 
 ## 2:50 to 3:00: close
-Say: "Learned from one demonstration, checked by vision, repaired by Gemma 4, all running on this laptop. The
+Say: "Learned from one demonstration, checked and repaired by Gemma 4, all running on this laptop. The
 patched plan is also written out as a plain Playwright script, so you can read what it will do."
 
 ## If something goes wrong
