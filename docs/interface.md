@@ -3,9 +3,9 @@
 Surface and Proof build against this file. Only Core changes it, and every change is called out in the
 PR description (see `2026-10-31-ROLES.md`).
 
-**Status:** `events.jsonl` and `plan.json` are implemented today (`shadow/record.py`, `shadow/steps.py`).
-`run.json` is **specified here and not yet written by the runner**; that is Core's next PR. Until then,
-build against the example at the end of this file.
+**Status:** all three formats are implemented: `events.jsonl` (`shadow/record.py`), `plan.json`
+(`shadow/steps.py`) and `run.json` (`shadow/run.py`, `run_plan()` and `save_run()`).
+`tests/test_run_fake.py::test_run_log_matches_interface` checks `run.json` against this file.
 
 ## Conventions
 - All files are UTF-8 JSON. Durations are seconds with an `_s` suffix (`check_s`, `time_per_step_s`).
@@ -65,8 +65,14 @@ A working example is `tests/fixtures/plan_export.json`.
 
 **Layout variants (demo site contract):** the runner selects a variant by setting the `layout` query
 parameter on every `goto` URL (`--layout b` gives `...invoices.html?layout=b`). A demo page treats a
-missing or unknown `layout` as its normal layout. Layout ids are short lowercase strings; Core will widen
-`--layout` beyond `a`/`b` to any such id.
+missing or unknown `layout` as its normal layout. Layout ids are 1 to 20 characters from `a-z`, `0-9`
+and `-`; `--layout` accepts any such id. Without `--layout` the plan's URLs are used unchanged and
+`run.json` has `"layout": null`.
+
+**Running without a model (Proof, Surface):** call `shadow.run.run_plan(page, plan, check=..., repair=...,
+shots_dir=..., run_info=...)` with plain functions `check(page, step) -> (ok, reason)` and
+`repair(page, step, problem) -> (new_step, explanation)`, then `save_run(exec_dir, result)`.
+`tests/test_run_fake.py` shows the pattern.
 
 ## run.json (runner output, schema_version 1)
 Top level:
@@ -105,6 +111,7 @@ Each `attempts[]` entry:
 | `error` | string or null | First line of the Playwright error |
 | `check` | `{ok, reason}` or null | Checker verdict; null if the action failed, so no check ran |
 | `screenshot` | string or null | e.g. `"shots/005-1.png"`, taken after the action and before the check |
+| `bbox` | `{x, y, width, height}` or null | Where the step's target is in `screenshot`, in CSS pixels from the top-left of the viewport, measured right after the action. Null for `goto`, failed actions, or if the element can't be found within 0.5 s. Optional for readers: draw it if present. |
 | `action_s`, `check_s` | number | Time for the action and for the checker call (0 if not run) |
 | `repair` | object or null | Present when this attempt failed and a repair was requested: `{explanation, new_step, accepted, repair_s}`. `accepted` is false if the repaired step failed validation. |
 
