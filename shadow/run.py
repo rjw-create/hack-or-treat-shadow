@@ -22,15 +22,22 @@ from shadow import llm
 from shadow.compile import compile_plan
 from shadow.steps import ACTIONS, PlanError, locate, validate_plan, validate_step
 
-STEP_TIMEOUT_MS = 3000
+# How long a real action waits for its element. 3000 ms was too short with a model loading the CPU: in the
+# first real eval, an unchanged search box and checkbox timed out and caused repairs of 70 to 213 s each.
+STEP_TIMEOUT_MS = 10000
 MAX_REPAIRS_PER_STEP = 2
 # Only used for the viewer's highlight box, so it must not slow a run down.
 BBOX_TIMEOUT_MS = 500
 # The accessibility snapshot is the repairer's map of the page; capped to keep prompts fast.
 MAX_SNAPSHOT_CHARS = 6000
 
-CHECK_SCHEMA = {"type": "object", "required": ["ok", "reason"],
-                "properties": {"ok": {"type": "boolean"}, "reason": {"type": "string"}}}
+# Field order matters: the model writes what it sees and any contradiction before it commits to a verdict.
+CHECK_SCHEMA = {"type": "object", "required": ["observed", "contradiction", "ok"], "properties": {
+    "observed": {"type": "string"},
+    "contradiction": {"type": "string"},
+    "ok": {"type": "boolean"},
+}}
+NO_CONTRADICTION = {"", "none", "none.", "n/a", "nothing", "no contradiction", "no contradiction."}
 REPAIR_SCHEMA = {"type": "object", "required": ["explanation", "step"], "properties": {
     "explanation": {"type": "string"},
     "step": {"type": "object", "required": ["intent", "action", "expected"], "properties": {
@@ -42,17 +49,26 @@ REPAIR_SCHEMA = {"type": "object", "required": ["explanation", "step"], "propert
     }},
 }}
 
+CHECK_RULES = """The step has already been performed; you see the page afterwards, so judge only the page's state,
+not whether you can see the action happen. The expected state is a description written in advance. Judge
+whether the page means the same thing; different wording of the same fact is not a contradiction.
+Reply with JSON:
+- "observed": what the page shows that relates to the expected state
+- "contradiction": what the page shows that conflicts with the expected state, or "" if nothing does
+- "ok": true if the page shows the expected state"""
+
 CHECK_PROMPT = """You check one step of a browser automation.
 Step intent: {intent}
 Expected state after the step: {expected}
-Look at the screenshot. Does the page show the expected state? Reply with JSON: {{"ok": true/false, "reason": "..."}}"""
+Look at the screenshot.
+""" + CHECK_RULES
 
 TEXT_CHECK_PROMPT = """You check one step of a browser automation.
 Step intent: {intent}
 Expected state after the step: {expected}
 Current page accessibility tree (role "name", with text and values):
 {tree}
-Does the page show the expected state? Reply with JSON: {{"ok": true/false, "reason": "..."}}"""
+""" + CHECK_RULES
 
 REPAIR_PROMPT = """You repair one step of a browser automation. The page may have changed since it was recorded.
 Failed step (JSON): {step}
@@ -87,11 +103,14 @@ def do_step(page, step):
 
 # Checker calls run with thinking off: on gemma4:e4b (CPU) it halved check time (46.8 s -> 24.1 s mean)
 # with 6/6 correct verdicts either way. Repairs keep thinking on; they are rarer and harder.
-def model_check(page, step):
-    """Screenshot check: used for the final step and right after a repair, where a person would look."""
-    reply = llm.chat_json("checker", CHECK_PROMPT.format(intent=step["intent"], expected=step["expected"]),
-                          images_png=[page.screenshot()], schema=CHECK_SCHEMA, think=False)
-    return bool(reply.get("ok")), str(reply.get("reason", ""))
+def check_verdict(reply):
+    """(ok, reason) from a checker reply. A "no" that names no contradiction counts as "yes": in the first
+    real eval the screenshot checker said no while its own reason said the page matched."""
+    observed = str(reply.get("observed", "")).strip()
+    contradiction = str(reply.get("contradiction", "")).strip()
+    no_contradiction = contradiction.lower() in NO_CONTRADICTION
+    ok = bool(reply.get("ok")) or no_contradiction
+    return ok, observed if ok or no_contradiction else contradiction
 
 
 def model_text_check(page, step):
@@ -99,7 +118,24 @@ def model_text_check(page, step):
     tree = page.locator("body").aria_snapshot()[:MAX_SNAPSHOT_CHARS]
     reply = llm.chat_json("checker", TEXT_CHECK_PROMPT.format(intent=step["intent"], expected=step["expected"], tree=tree),
                           schema=CHECK_SCHEMA, think=False)
-    return bool(reply.get("ok")), str(reply.get("reason", ""))
+    return check_verdict(reply)
+
+
+def model_check(page, step):
+    """Screenshot check: used for the final step and right after a repair, where a person would look.
+
+    If the screenshot check says no, the text check gives a second opinion: the accessibility tree holds the
+    page's exact text, and a false "no" here starts a repair that can take minutes.
+    """
+    reply = llm.chat_json("checker", CHECK_PROMPT.format(intent=step["intent"], expected=step["expected"]),
+                          images_png=[page.screenshot()], schema=CHECK_SCHEMA, think=False)
+    ok, reason = check_verdict(reply)
+    if ok:
+        return ok, reason
+    text_ok, text_reason = model_text_check(page, step)
+    if text_ok:
+        return True, f"Text check passed: {text_reason} (screenshot check had said: {reason})"
+    return False, reason
 
 
 def model_repair(page, step, problem):

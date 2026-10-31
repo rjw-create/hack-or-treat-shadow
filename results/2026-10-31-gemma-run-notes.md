@@ -22,18 +22,21 @@ So both page changes the layouts introduce were repaired correctly on the first 
 ## Why layout b still failed
 1. **Timeouts on elements layout b did not change.** Step 2 (search box) and step 4 (row checkbox) are the
    same in layouts a and b, but their actions hit the runner's 3 s timeout. Repair calls during this time were also slow
-   (213 s and 136 s, against about 45 s elsewhere), which points to CPU contention. Shadow Core reported running
-   `check.sh` (which starts browsers) during this run, but that cause is not verified. On step 2, E4B's first
+   (213 s and 136 s, against about 45 s elsewhere), which points to CPU contention. Shadow Core confirmed it ran
+   `check.sh` about 4 times (each starts headless browsers for 40 to 120 s), plus a fresh-clone setup and fake evals,
+   between about 13:40 and 13:56, overlapping this run. So contention is likely, but it is not proven to have
+   caused these timeouts. On step 2, E4B's first
    repair changed the role to `input` (not a valid ARIA role), and its second changed it back to `searchbox`.
    On step 4 it resubmitted the same step, which then worked.
-2. **The screenshot checker turned down a correct page.** After the correct repair, the page showed
-   "Exported 1 invoice: INV-1042". The checker's reason quoted that text and said the page matched, but it still
-   returned `ok: false`, twice. The runner gave up. The eval's own page check (`end_state_ok`) confirms the task
+2. **The screenshot checker turned down a correct page twice.** After the correct repair, the page showed
+   "Exported 1 invoice: INV-1042". On attempt 2 the checker returned `ok: false` because it expected to see the
+   click itself in the screenshot. On attempt 3 it returned `ok: false` while its own reason said the page
+   matched. The runner gave up. The eval's own page check (`end_state_ok`) confirms the task
    was in fact done. This is why task success needs the page check: the runner's verdict alone was wrong here.
 
 ## Takeaways
-- Repair (planner) worked on both real page changes. The weak point in this run was the checker, which said
-  "no" while its own explanation said "yes".
+- Repair (planner) worked on both real page changes. The weak point in this run was the checker, which turned down
+  a correct page twice (Core PR #16 targets both causes).
 - The 2 / 5 repair rate on layout b mixes in failures the layout did not cause: timeouts under load and checker
   errors. Separate them before quoting it.
 - Time per step on CPU is about 20-40 s when nothing goes wrong, almost all of it model time
@@ -44,6 +47,8 @@ So both page changes the layouts introduce were repaired correctly on the first 
   `runner_ok_rate` is the runner's own verdict and is wrong whenever the checker is wrong.
 - **`steps_per_task` in the summary JSON counts attempts**, retries included, not plan steps. All three plans have 5 steps;
   layout b used 10 attempts. Later summaries name this `attempts_per_task`.
+- **Don't quote the overall 73.4 s per step as typical.** Layout b's slow repairs dominate it. "About 20-40 s per
+  step when nothing goes wrong" is the fair summary.
 - **`time_per_step_s` in the summary is the mean over every step that ran, pooled across runs.** `run.json`'s own
   `summary.time_per_step_s` is per run.
 - **Model cold start:** the model was not loaded beforehand, so layout a's first check (37.7 s) probably includes
