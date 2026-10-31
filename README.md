@@ -49,6 +49,47 @@ Then, in a second terminal:
 `--layout b` moves the export button and renames it to "Download selected", so the recorded step fails and
 has to be repaired.
 
+### Layout variants
+The demo page reads `?layout=<id>` (the runner adds it from `--layout`). A missing or unknown id gives the normal
+layout. Each variant breaks a different kind of locator:
+
+| Layout | What changes | Recorded step that breaks |
+| --- | --- | --- |
+| `a` | Nothing (normal layout) | None |
+| `b` | Export button renamed "Download selected" and moved below the table | click button "Export selected" |
+| `c` | Labels renamed "Find client" and "Payment status" | fill searchbox "Search customer", select combobox "Status" |
+| `d` | Row checkboxes renamed "Include INV-...", button renamed "Export invoices" | click checkbox "Select INV-...", click button "Export selected" |
+| `e` | Status dropdown replaced by radio buttons | select combobox "Status"; the repair has to change the action to click radio "Unpaid" |
+
+### Run report
+Each run writes `runs\<run id>\exec\<exec id>\run.json` (format in `docs/interface.md`). Turn it into a page:
+```
+.venv\Scripts\python -m viewer.report runs\<run id>\exec\<exec id>
+```
+This writes `report.html` in the same folder; open it straight from disk. It shows a summary, then each step with
+its screenshot, a box around the element the step acted on, the checker's verdict and the time taken. A repaired
+step shows the planner's explanation, the old target next to the new one, and the failed and repaired screenshots
+side by side. All model-written text is escaped, and the page has no JavaScript.
+
+## Evals
+`evals/run_evals.py` runs every task in `evals/suite.json` on layouts `a` to `e` and writes raw results and a
+summary to `results/`:
+```
+.venv\Scripts\python -m evals.run_evals --mode fake
+```
+```
+.venv\Scripts\python -m evals.run_evals --mode gemma --runs 3
+```
+`--mode fake` is a pipeline test: its checker always says ok and its repairer already knows the answer.
+
+## Results
+No results from Gemma 4 yet. The files in `results/` so far are fake-mode pipeline tests; they show the runner,
+repair loop and metrics work end to end, and say nothing about how well Gemma 4 plans, checks or repairs.
+This section will list task success rate, repair success rate and time per step from `--mode gemma` runs, with a
+link to the raw file each number comes from.
+
+Measured time per step with Gemma 4 on this machine: (fill in from the first real run)
+
 ## Checks (Git Bash)
 ```
 ./scripts/check.sh
@@ -58,3 +99,5 @@ has to be repaired.
 - The recorder's role and name detection is a simplified version of the ARIA rules; it covers standard form controls.
 - A retry after a failed check can repeat an action (checkboxes use `check()` to avoid toggling twice).
 - Only browser tasks on localhost pages.
+- The demo site is a small fake invoice app with five layouts; real sites will change in more ways than these.
+- The report's target box assumes the runner's default device scale factor (1 CSS pixel per screenshot pixel).
