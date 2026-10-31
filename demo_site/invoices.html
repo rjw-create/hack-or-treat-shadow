@@ -21,6 +21,9 @@
   th { font-size: 13px; color: var(--muted); font-weight: 600; }
   .footer-actions { margin-top: 12px; display: flex; justify-content: flex-end; }
   #status { margin-top: 12px; min-height: 1.4em; font-weight: 600; }
+  .radio-group { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; margin: 0; padding: 4px 8px;
+    border: 1px solid var(--line); border-radius: 6px; }
+  .radio-group legend { font-size: 13px; color: var(--muted); padding: 0 4px; }
 </style>
 </head>
 <body>
@@ -28,7 +31,7 @@
   <h1>Invoices</h1>
   <div class="toolbar" id="toolbar">
     <div class="field"><label for="search">Search customer</label><input type="search" id="search" placeholder="Customer name"></div>
-    <div class="field"><label for="status-filter">Status</label>
+    <div class="field" id="status-field"><label for="status-filter">Status</label>
       <select id="status-filter">
         <option>All</option>
         <option>Paid</option>
@@ -55,17 +58,60 @@
     { id: "INV-1043", customer: "Initech", date: "2026-10-29", amount_usd: 99.00, status: "Paid" },
   ];
 
-  // ?layout=b moves and renames the export button. This is the page change Shadow has to recover from.
-  const layoutB = new URLSearchParams(location.search).get("layout") === "b";
+  // Layout variants are the page changes Shadow has to recover from. The runner adds ?layout=<id>;
+  // a missing or unknown id gives the normal layout. Each variant breaks a different kind of locator:
+  //   b: export button renamed "Download selected" and moved below the table
+  //   c: search and status filters relabelled "Find client" and "Payment status"
+  //   d: row checkboxes renamed "Include INV-..." and export button renamed "Export invoices"
+  //   e: status filter is a group of radio buttons instead of a dropdown
+  const LAYOUTS = {
+    b: { exportLabel: "Download selected", exportBelowTable: true },
+    c: { searchLabel: "Find client", statusLabel: "Payment status" },
+    d: { rowLabelPrefix: "Include ", exportLabel: "Export invoices" },
+    e: { statusAsRadios: true },
+  };
+  const layoutId = new URLSearchParams(location.search).get("layout");
+  // hasOwn, so ids like "constructor" count as unknown instead of reading inherited properties.
+  const layout = Object.hasOwn(LAYOUTS, layoutId) ? LAYOUTS[layoutId] : {};
+
   const exportButton = document.createElement("button");
   exportButton.type = "button";
-  exportButton.textContent = layoutB ? "Download selected" : "Export selected";
-  (layoutB ? document.getElementById("footer-actions") : document.getElementById("toolbar")).appendChild(exportButton);
+  exportButton.textContent = layout.exportLabel || "Export selected";
+  document.getElementById(layout.exportBelowTable ? "footer-actions" : "toolbar").appendChild(exportButton);
+
+  if (layout.searchLabel) document.querySelector('label[for="search"]').textContent = layout.searchLabel;
+  if (layout.statusLabel) document.querySelector('label[for="status-filter"]').textContent = layout.statusLabel;
+  if (layout.statusAsRadios) {
+    const group = document.createElement("fieldset");
+    group.className = "radio-group";
+    const legend = document.createElement("legend");
+    legend.textContent = "Status";
+    group.appendChild(legend);
+    for (const option of ["All", "Paid", "Unpaid"]) {
+      const id = "status-" + option.toLowerCase();
+      const radio = document.createElement("input");
+      radio.type = "radio";
+      radio.name = "status";
+      radio.id = id;
+      radio.value = option;
+      radio.checked = option === "All";
+      const label = document.createElement("label");
+      label.htmlFor = id;
+      label.textContent = option;
+      group.append(radio, label);
+    }
+    document.getElementById("status-field").replaceWith(group);
+  }
 
   const search = document.getElementById("search");
-  const statusFilter = document.getElementById("status-filter");
+  const statusFilter = layout.statusAsRadios ? document.querySelector("fieldset.radio-group") : document.getElementById("status-filter");
   const rows = document.getElementById("rows");
   const statusLine = document.getElementById("status");
+
+  function wantedStatus() {
+    if (!layout.statusAsRadios) return statusFilter.value;
+    return statusFilter.querySelector("input[name=status]:checked").value;
+  }
 
   function cell(text) {
     const td = document.createElement("td");
@@ -75,7 +121,7 @@
 
   function render() {
     const query = search.value.trim().toLowerCase();
-    const wanted = statusFilter.value;
+    const wanted = wantedStatus();
     rows.replaceChildren();
     for (const inv of INVOICES) {
       if (query && !inv.customer.toLowerCase().includes(query)) continue;
@@ -85,7 +131,7 @@
       const box = document.createElement("input");
       box.type = "checkbox";
       box.value = inv.id;
-      box.setAttribute("aria-label", "Select " + inv.id);
+      box.setAttribute("aria-label", (layout.rowLabelPrefix || "Select ") + inv.id);
       boxCell.appendChild(box);
       tr.append(boxCell, cell(inv.id), cell(inv.customer), cell(inv.date), cell(inv.amount_usd.toFixed(2)), cell(inv.status));
       rows.appendChild(tr);
