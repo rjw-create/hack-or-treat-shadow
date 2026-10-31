@@ -74,8 +74,37 @@ patched plan is also written out as a plain Playwright script, so you can read w
 | Running short of time | Skip the layout a segment (1:10 to 1:30). |
 
 ## Recording the backup video (final hour)
-- Needs Jackson's go-ahead for real model runs (shared GPU). One task, layouts a, b and e.
-- Record the screen at normal speed, then speed up the waits in the edit and show the speed on screen (for example "8x").
-- Keep the terminal and the browser both visible during the runs.
-- Afterwards, generate the reports with `python -m viewer.report` for the same runs, so tab 2 matches the video.
-- Fill in the "Measured" line at the top from the run's own output.
+Needs Jackson's go-ahead for real model runs (shared GPU). One task, layouts a, b and e, run through Proof's eval
+runner with its `--show` flag, so the same run gives the video, the reports and the first real results.
+
+### Tools (built into Windows 11, nothing to install)
+- Record: Snipping Tool's screen recording (Win+Shift+R, drag over the whole screen, then Start). Game Bar
+  (Win+Alt+R) records only one app window, so it would miss either the terminal or the browser.
+- Edit: Clipchamp, to cut the long waits or speed them up, and to add a text label with the speed (for example "8x").
+
+### Window layout (1920 x 1080 screen, or whatever the projector uses)
+- Left half: the terminal, font size 16 or larger, so the step log and repair lines are readable in the video.
+- Right half: the browser window Playwright opens. It appears when the run starts; drag it to the right half then.
+- Hide the taskbar clock and notifications (Focus on); close anything showing names, email or chat.
+
+### Steps
+1. Terminal 1: `.venv\Scripts\python -m http.server 8000` if the eval runner needs it (check Proof's `--show` notes).
+2. Terminal 2: set `SHADOW_PLANNER_MODEL` and `SHADOW_CHECKER_MODEL`, then warm up each model so the first recorded
+   check does not include load time (Ollama unloads an idle model after 5 minutes by default, so start recording soon after):
+   ```
+   ollama run <checker tag> "Reply OK"
+   ```
+   ```
+   ollama run <planner tag> "Reply OK"
+   ```
+3. Start the Snipping Tool recording, then start the eval run with `--show` for one task and layouts a, b and e.
+4. Stop the recording when the run prints its summary.
+5. For each exec folder the run printed, make the report (PowerShell, one folder per command):
+   ```
+   .venv\Scripts\python -m viewer.report <exec folder>
+   ```
+   Open the layout b `report.html` in a browser tab; that is tab 2 for the demo.
+6. Copy the time per step and run times from the run's printed output into the "Measured" line at the top of this file.
+7. In Clipchamp: keep the record segment and the step-5 repair of layout b at normal speed, speed up or cut the
+   rest, and keep a visible speed label on every sped-up part. Export at 1080p.
+8. Save the video outside the repo and do not commit it; put its link in `2026-10-31-submission.md`.
