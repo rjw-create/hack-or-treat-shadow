@@ -279,6 +279,9 @@ def main():
     parser.add_argument("--layout", type=layout_id, default=None)
     parser.add_argument("--headless", action="store_true")
     args = parser.parse_args()
+    if not args.plan.is_file():
+        print(f"No plan file at {args.plan}. Make one with: python -m shadow.plan runs\\<recording id>")
+        return 2
     plan = json.loads(args.plan.read_text(encoding="utf-8"))
     if args.layout:
         plan = with_layout(plan, args.layout)
