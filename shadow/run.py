@@ -47,6 +47,13 @@ Step intent: {intent}
 Expected state after the step: {expected}
 Look at the screenshot. Does the page show the expected state? Reply with JSON: {{"ok": true/false, "reason": "..."}}"""
 
+TEXT_CHECK_PROMPT = """You check one step of a browser automation.
+Step intent: {intent}
+Expected state after the step: {expected}
+Current page accessibility tree (role "name", with text and values):
+{tree}
+Does the page show the expected state? Reply with JSON: {{"ok": true/false, "reason": "..."}}"""
+
 REPAIR_PROMPT = """You repair one step of a browser automation. The page may have changed since it was recorded.
 Failed step (JSON): {step}
 What went wrong: {problem}
@@ -78,9 +85,20 @@ def do_step(page, step):
         loc.press(step["value"])
 
 
+# Checker calls run with thinking off: on gemma4:e4b (CPU) it halved check time (46.8 s -> 24.1 s mean)
+# with 6/6 correct verdicts either way. Repairs keep thinking on; they are rarer and harder.
 def model_check(page, step):
+    """Screenshot check: used for the final step and right after a repair, where a person would look."""
     reply = llm.chat_json("checker", CHECK_PROMPT.format(intent=step["intent"], expected=step["expected"]),
-                          images_png=[page.screenshot()], schema=CHECK_SCHEMA)
+                          images_png=[page.screenshot()], schema=CHECK_SCHEMA, think=False)
+    return bool(reply.get("ok")), str(reply.get("reason", ""))
+
+
+def model_text_check(page, step):
+    """Text-only check against the accessibility tree: cheaper, used for routine steps."""
+    tree = page.locator("body").aria_snapshot()[:MAX_SNAPSHOT_CHARS]
+    reply = llm.chat_json("checker", TEXT_CHECK_PROMPT.format(intent=step["intent"], expected=step["expected"], tree=tree),
+                          schema=CHECK_SCHEMA, think=False)
     return bool(reply.get("ok")), str(reply.get("reason", ""))
 
 
@@ -131,12 +149,15 @@ def summarize(steps_log):
     }
 
 
-def run_plan(page, plan, check=model_check, repair=model_repair, log=print, shots_dir=None, run_info=None):
+def run_plan(page, plan, check=model_check, repair=model_repair, log=print, shots_dir=None, run_info=None,
+             visual_check=None, step_timeout_ms=STEP_TIMEOUT_MS):
     """Run every step and build the run log described in docs/interface.md.
 
     Returns {"ok", "plan", "repairs", "failed_step", "log"}; the input plan is not modified.
     shots_dir: where to save per-attempt screenshots (None = don't save).
     run_info: top-level run.json fields the caller knows (recording_id, exec_id, layout, models).
+    visual_check: if given, used instead of check for the final step and for attempts after a repair.
+    step_timeout_ms: how long an action waits for its element; tests lower it so fake repairs start sooner.
     """
     plan = copy.deepcopy(validate_plan(plan))
     started_at = datetime.now().astimezone().isoformat(timespec="seconds")
@@ -145,7 +166,8 @@ def run_plan(page, plan, check=model_check, repair=model_repair, log=print, shot
     failed_step = None
     steps_log = [{"index": i + 1, "status": "not_run", "planned": copy.deepcopy(s), "time_s": 0, "attempts": []}
                  for i, s in enumerate(plan["steps"])]
-    page.set_default_timeout(STEP_TIMEOUT_MS)
+    page.set_default_timeout(step_timeout_ms)
+    last = len(plan["steps"]) - 1
 
     for i, step in enumerate(plan["steps"]):
         entry = steps_log[i]
@@ -176,10 +198,11 @@ def run_plan(page, plan, check=model_check, repair=model_repair, log=print, shot
                 attempt["bbox"] = target_box(page, step["target"])
 
             if attempt["action_ok"]:
+                use_visual = visual_check is not None and (i == last or repaired)
                 t0 = time.perf_counter()
-                ok, reason = check(page, step)
+                ok, reason = (visual_check if use_visual else check)(page, step)
                 attempt["check_s"] = seconds_since(t0)
-                attempt["check"] = {"ok": bool(ok), "reason": reason}
+                attempt["check"] = {"ok": bool(ok), "reason": reason, "used": "visual_check" if use_visual else "check"}
                 problem = None if ok else f"Action ran but the check failed: {reason}"
             else:
                 problem = "Action failed: " + attempt["error"]
@@ -273,7 +296,10 @@ def main():
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=args.headless)
-        result = run_plan(browser.new_page(), plan, shots_dir=exec_dir / "shots", run_info=run_info)
+        # Scale 1 keeps screenshot pixels equal to CSS pixels, which the viewer's bbox overlay relies on.
+        page = browser.new_page(device_scale_factor=1)
+        result = run_plan(page, plan, check=model_text_check, visual_check=model_check,
+                          shots_dir=exec_dir / "shots", run_info=run_info)
         browser.close()
 
     save_run(exec_dir, result)

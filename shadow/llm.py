@@ -30,8 +30,11 @@ def model_for(role):
     return name
 
 
-def chat_json(role, prompt, images_png=(), schema=None, timeout_s=600):
-    """Send one prompt (plus optional PNG bytes) and return the parsed JSON reply."""
+def chat_json(role, prompt, images_png=(), schema=None, timeout_s=600, think=None):
+    """Send one prompt (plus optional PNG bytes) and return the parsed JSON reply.
+
+    think=False turns off Gemma 4's hidden reasoning (on by default in Ollama); None keeps the model default.
+    """
     body = {
         "model": model_for(role),
         "stream": False,
@@ -43,6 +46,8 @@ def chat_json(role, prompt, images_png=(), schema=None, timeout_s=600):
             "images": [base64.b64encode(png).decode("ascii") for png in images_png],
         }],
     }
+    if think is not None:
+        body["think"] = think
     req = urllib.request.Request(
         ollama_url() + "/api/chat",
         data=json.dumps(body).encode("utf-8"),

@@ -72,7 +72,12 @@ and `-`; `--layout` accepts any such id. Without `--layout` the plan's URLs are 
 **Running without a model (Proof, Surface):** call `shadow.run.run_plan(page, plan, check=..., repair=...,
 shots_dir=..., run_info=...)` with plain functions `check(page, step) -> (ok, reason)` and
 `repair(page, step, problem) -> (new_step, explanation)`, then `save_run(exec_dir, result)`.
-`tests/test_run_fake.py` shows the pattern.
+`tests/test_run_fake.py` shows the pattern. Optional arguments:
+- `visual_check`: same signature as `check`; if given, it replaces `check` for the final step and for
+  every attempt after a repair. Real-model runs that match the CLI pass
+  `check=model_text_check, visual_check=model_check` (both in `shadow.run`).
+- `step_timeout_ms` (default 3000): how long an action waits for its element. Tests can use about 500 ms
+  against the local demo page so fake repairs start sooner.
 
 ## run.json (runner output, schema_version 1)
 Top level:
@@ -109,9 +114,9 @@ Each `attempts[]` entry:
 | `step` | step object | The step actually performed in this attempt |
 | `action_ok` | boolean | False if Playwright could not do the action (e.g. element not found) |
 | `error` | string or null | First line of the Playwright error |
-| `check` | `{ok, reason}` or null | Checker verdict; null if the action failed, so no check ran |
+| `check` | `{ok, reason, used}` or null | Checker verdict; null if the action failed, so no check ran. `used` is `"check"` or `"visual_check"`: which runner argument gave the verdict (see "Running without a model"). The CLI uses a text-only check for `check` and a screenshot check for `visual_check`. |
 | `screenshot` | string or null | e.g. `"shots/005-1.png"`, taken after the action and before the check |
-| `bbox` | `{x, y, width, height}` or null | Where the step's target is in `screenshot`, in CSS pixels from the top-left of the viewport, measured right after the action. Null for `goto`, failed actions, or if the element can't be found within 0.5 s. Optional for readers: draw it if present. |
+| `bbox` | `{x, y, width, height}` or null | Where the step's target is in `screenshot`, in CSS pixels from the top-left of the viewport, measured right after the action. The runner keeps `device_scale_factor` at 1, so CSS pixels equal screenshot pixels. Null for `goto`, failed actions, or if the element can't be found within 0.5 s. Optional for readers: draw it if present. |
 | `action_s`, `check_s` | number | Time for the action and for the checker call (0 if not run) |
 | `repair` | object or null | Present when this attempt failed and a repair was requested: `{explanation, new_step, accepted, repair_s}`. `accepted` is false if the repaired step failed validation. |
 
