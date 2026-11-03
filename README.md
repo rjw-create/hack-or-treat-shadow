@@ -151,3 +151,6 @@ The `fake` files in `results/` are pipeline tests; they say nothing about how we
 - Only browser tasks on localhost pages.
 - The demo site is a small fake invoice app with five layouts; real sites will change in more ways than these.
 - The report's target box relies on the runner's device scale factor of 1 (1 CSS pixel per screenshot pixel).
+
+## License
+Apache License 2.0. See [`LICENSE`](LICENSE).

@@ -1,7 +1,7 @@
 # Shadow interface (owned by Core)
 
 Surface and Proof build against this file. Only Core changes it, and every change is called out in the
-PR description (see `2026-10-31-ROLES.md`).
+PR description (see `docs/hackathon/2026-10-31-ROLES.md`).
 
 **Status:** all three formats are implemented: `events.jsonl` (`shadow/record.py`), `plan.json`
 (`shadow/steps.py`) and `run.json` (`shadow/run.py`, `run_plan()` and `save_run()`).

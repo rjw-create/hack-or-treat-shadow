@@ -107,7 +107,7 @@ CPU-heavy work in any other session. CPU contention caused the timeouts in the f
      The repair moment itself stays at normal speed.
    - Order: layout a (short, sped up), then the repair run (layout e, or b if the re-test passes), then a still of
      the report's repaired step with the target box.
-4. Do not commit the video. Put its local path in `2026-10-31-submission.md` for Jackson to upload, and use it
+4. Do not commit the video. Put its local path in `docs/hackathon/2026-10-31-submission.md` for Jackson to upload, and use it
    in the demo's browser tab 1.
 5. Fill in the "Measured" line at the top of this file from the run's run.json files.
 
