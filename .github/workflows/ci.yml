@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # check.sh looks for .venv, so build one here the same way the README does.
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install playwright
+          .venv/bin/python -m playwright install --with-deps chromium
+
+      # Full check: unit tests plus the headless end-to-end tests. They use a fake LLM; no Ollama or model.
+      - name: Run checks
+        run: bash scripts/check.sh
