@@ -3,7 +3,7 @@
     {
       "id": "export_invoice",
       "plan": "tasks/export_invoice.json",
-      "layouts": ["a", "b", "c", "d", "e"],
+      "layouts": ["a", "b", "c", "d", "e", "f", "g", "h"],
       "done_when": {"role": "status", "text": "Exported 1 invoice: INV-1042"},
       "oracle_fixes": {
         "b": {"Export selected": {"target": {"role": "button", "name": "Download selected"}}},
@@ -11,13 +11,16 @@
               "Status": {"target": {"role": "combobox", "name": "Payment status"}}},
         "d": {"Select INV-1042": {"target": {"role": "checkbox", "name": "Include INV-1042"}},
               "Export selected": {"target": {"role": "button", "name": "Export invoices"}}},
-        "e": {"Status": {"action": "click", "target": {"role": "radio", "name": "Unpaid"}, "value": null}}
+        "e": {"Status": {"action": "click", "target": {"role": "radio", "name": "Unpaid"}, "value": null}},
+        "f": {"Search customer": {"target": {"role": "searchbox", "name": "Filter by company"}}},
+        "g": {"Export selected": {"target": {"role": "button", "name": "Export"}}},
+        "h": {"Status": {"action": "click", "target": {"role": "radio", "name": "Outstanding"}, "value": null}}
       }
     },
     {
       "id": "export_all_unpaid_acme",
       "plan": "tasks/export_all_unpaid_acme.json",
-      "layouts": ["a", "b", "c", "d", "e"],
+      "layouts": ["a", "b", "c", "d", "e", "f", "g", "h"],
       "done_when": {"role": "status", "text": "Exported 2 invoices: INV-1041, INV-1042"},
       "oracle_fixes": {
         "b": {"Export selected": {"target": {"role": "button", "name": "Download selected"}}},
@@ -26,13 +29,16 @@
         "d": {"Select INV-1041": {"target": {"role": "checkbox", "name": "Include INV-1041"}},
               "Select INV-1042": {"target": {"role": "checkbox", "name": "Include INV-1042"}},
               "Export selected": {"target": {"role": "button", "name": "Export invoices"}}},
-        "e": {"Status": {"action": "click", "target": {"role": "radio", "name": "Unpaid"}, "value": null}}
+        "e": {"Status": {"action": "click", "target": {"role": "radio", "name": "Unpaid"}, "value": null}},
+        "f": {"Search customer": {"target": {"role": "searchbox", "name": "Filter by company"}}},
+        "g": {"Export selected": {"target": {"role": "button", "name": "Export"}}},
+        "h": {"Status": {"action": "click", "target": {"role": "radio", "name": "Outstanding"}, "value": null}}
       }
     },
     {
       "id": "export_paid_initech",
       "plan": "tasks/export_paid_initech.json",
-      "layouts": ["a", "b", "c", "d", "e"],
+      "layouts": ["a", "b", "c", "d", "e", "f", "g", "h"],
       "done_when": {"role": "status", "text": "Exported 1 invoice: INV-1043"},
       "oracle_fixes": {
         "b": {"Export selected": {"target": {"role": "button", "name": "Download selected"}}},
@@ -40,7 +46,10 @@
               "Status": {"target": {"role": "combobox", "name": "Payment status"}}},
         "d": {"Select INV-1043": {"target": {"role": "checkbox", "name": "Include INV-1043"}},
               "Export selected": {"target": {"role": "button", "name": "Export invoices"}}},
-        "e": {"Status": {"action": "click", "target": {"role": "radio", "name": "Paid"}, "value": null}}
+        "e": {"Status": {"action": "click", "target": {"role": "radio", "name": "Paid"}, "value": null}},
+        "f": {"Search customer": {"target": {"role": "searchbox", "name": "Filter by company"}}},
+        "g": {"Export selected": {"target": {"role": "button", "name": "Export"}}},
+        "h": {"Status": {"action": "click", "target": {"role": "radio", "name": "Settled"}, "value": null}}
       }
     }
   ]

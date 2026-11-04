@@ -131,7 +131,7 @@ class FakeSuiteTest(unittest.TestCase):
 
     def test_every_task_and_layout_succeeds_with_the_oracle(self):
         # Proves the suite file itself is right: each layout's answer key really fixes that layout.
-        self.assertEqual(len(self.records), 15)
+        self.assertEqual(len(self.records), 24)  # 3 tasks x layouts a-h
         failed = [(r["task"], r["layout"]) for r in self.records if not r["task_success"]]
         self.assertEqual(failed, [])
 
