@@ -24,11 +24,12 @@
   .radio-group { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; margin: 0; padding: 4px 8px;
     border: 1px solid var(--line); border-radius: 6px; }
   .radio-group legend { font-size: 13px; color: var(--muted); padding: 0 4px; }
+  .page-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; }
 </style>
 </head>
 <body>
 <main>
-  <h1>Invoices</h1>
+  <div class="page-head" id="page-head"><h1>Invoices</h1></div>
   <div class="toolbar" id="toolbar">
     <div class="field"><label for="search">Search customer</label><input type="search" id="search" placeholder="Customer name"></div>
     <div class="field" id="status-field"><label for="status-filter">Status</label>
@@ -64,11 +65,19 @@
   //   c: search and status filters relabelled "Find client" and "Payment status"
   //   d: row checkboxes renamed "Include INV-..." and export button renamed "Export invoices"
   //   e: status filter is a group of radio buttons instead of a dropdown
+  //   f: only the search field is relabelled, to "Filter by company"
+  //   g: export button moved up next to the page title and shortened to "Export"
+  //   h: status filter is radio buttons with accounting words: "Settled" for Paid, "Outstanding" for Unpaid
+  // A button that only moves keeps its role and name, and the runner finds elements by role and name, so a
+  // move alone breaks no step; g also shortens the name so the move has to be repaired.
   const LAYOUTS = {
     b: { exportLabel: "Download selected", exportBelowTable: true },
     c: { searchLabel: "Find client", statusLabel: "Payment status" },
     d: { rowLabelPrefix: "Include ", exportLabel: "Export invoices" },
     e: { statusAsRadios: true },
+    f: { searchLabel: "Filter by company" },
+    g: { exportLabel: "Export", exportInHeader: true },
+    h: { statusAsRadios: true, statusLegend: "Payment", radioLabels: { Paid: "Settled", Unpaid: "Outstanding" } },
   };
   const layoutId = new URLSearchParams(location.search).get("layout");
   // hasOwn, so ids like "constructor" count as unknown instead of reading inherited properties.
@@ -77,7 +86,8 @@
   const exportButton = document.createElement("button");
   exportButton.type = "button";
   exportButton.textContent = layout.exportLabel || "Export selected";
-  document.getElementById(layout.exportBelowTable ? "footer-actions" : "toolbar").appendChild(exportButton);
+  const exportHome = layout.exportBelowTable ? "footer-actions" : layout.exportInHeader ? "page-head" : "toolbar";
+  document.getElementById(exportHome).appendChild(exportButton);
 
   if (layout.searchLabel) document.querySelector('label[for="search"]').textContent = layout.searchLabel;
   if (layout.statusLabel) document.querySelector('label[for="status-filter"]').textContent = layout.statusLabel;
@@ -85,7 +95,7 @@
     const group = document.createElement("fieldset");
     group.className = "radio-group";
     const legend = document.createElement("legend");
-    legend.textContent = "Status";
+    legend.textContent = layout.statusLegend || "Status";
     group.appendChild(legend);
     for (const option of ["All", "Paid", "Unpaid"]) {
       const id = "status-" + option.toLowerCase();
@@ -97,7 +107,8 @@
       radio.checked = option === "All";
       const label = document.createElement("label");
       label.htmlFor = id;
-      label.textContent = option;
+      // The radio's value stays the data's status word; only the visible label changes.
+      label.textContent = (layout.radioLabels || {})[option] || option;
       group.append(radio, label);
     }
     document.getElementById("status-field").replaceWith(group);
