@@ -1,7 +1,7 @@
 # Real Gemma 4 runs on the new page-change layouts (2026-11-03)
 
-Task `export_invoice` on layouts f, g and h, 3 runs each (9 runs). The other two suite tasks have not been run on
-these layouts.
+Task `export_invoice` on layouts f, g and h, 3 runs each (9 runs). The other two suite tasks were run on these
+layouts on 2026-11-04; see `2026-11-04-remaining-tasks-run-notes.md`.
 
 Raw files, each line holding the full run.json:
 - `2026-11-03-194836-gemma-runs.jsonl`: layouts f and g (6 runs, code `922d4cf`). This eval was started for all
