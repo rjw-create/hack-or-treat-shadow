@@ -127,14 +127,31 @@ run folder per run (path printed as `Run folders go to ...`) that `viewer.report
 `--layouts` pick a subset, for example `--tasks export_invoice --layouts a b e`.
 
 ## Results
-Real runs on 2026-10-31: `gemma4:e4b` as planner and checker on a laptop CPU, task `export_invoice`, one run on
-each of layouts a, b and e. One run per layout shows the pipeline working end to end; it is not a success rate.
-Details: [`results/2026-10-31-gemma-run-notes.md`](results/2026-10-31-gemma-run-notes.md).
+Real runs with `gemma4:e4b` as planner and checker on a laptop CPU:
+- 2026-10-31: task `export_invoice`, one run on each of layouts a, b and e. Details:
+  [`results/2026-10-31-gemma-run-notes.md`](results/2026-10-31-gemma-run-notes.md).
+- 2026-11-03 and 2026-11-04: all three suite tasks (`export_invoice`, `export_all_unpaid_acme`,
+  `export_paid_initech`) on layouts f, g and h, 3 runs per task and layout (27 runs). Details:
+  [`results/2026-11-03-page-change-run-notes.md`](results/2026-11-03-page-change-run-notes.md) and
+  [`results/2026-11-04-remaining-tasks-run-notes.md`](results/2026-11-04-remaining-tasks-run-notes.md).
 
-- **Task success** (runner ok and correct end page): 3 of 3, on layouts a, b and e.
-- **Repairs:** 2 of 2 worked on the first try. Layout b: "Export selected" became "Download selected". Layout e:
-  Gemma 4 changed the step's action, from `select` on the Status dropdown to `click` on the "Unpaid" radio button.
-- **Time:** 30.2 s per step on average, almost all of it model time; a 5-step task took 2.0 to 2.9 minutes.
+**30 of 30 tasks succeeded, and 29 of 29 repairs worked on the first try.** Task success means the runner reported
+success and the page showed the expected end state. These are too few runs for a general success rate (see Limits).
+
+| Layout | What changed on the page | Task success | Repairs that worked on the first try | Mean repair time (model call) |
+| --- | --- | --- | --- | --- |
+| f | Search label renamed "Filter by company" | 9 of 9 | 9 of 9 | 36.5 s |
+| g | Export button moved next to the page title and renamed "Export" | 9 of 9 | 9 of 9 | 31.6 s |
+| h | Status dropdown replaced by radio buttons "All", "Settled", "Outstanding" | 9 of 9 | 9 of 9 | 57.0 s |
+
+- **Layouts a, b and e (2026-10-31):** 3 of 3 tasks succeeded and 2 of 2 repairs worked on the first try. Layout b:
+  "Export selected" became "Download selected". Layout e: Gemma 4 changed the step's action, from `select` on the
+  Status dropdown to `click` on the "Unpaid" radio button.
+- **Layout h:** Gemma 4 picked the radio button by meaning: "Outstanding" for the two unpaid tasks and "Settled"
+  for the paid task.
+- **Time:** 30.2 s per step on average on 2026-10-31, almost all of it model time (a 5-step task took 2.0 to 2.9
+  minutes), and 20.0 s per step on layouts f, g and h. The 2026-10-31 runs used a visible browser recording video;
+  the later runs were headless, so the per-step times are not strictly comparable.
 - **Earlier run:** before Core's checker and timeout fixes, layout b's repair was also right, but the screenshot
   checker contradicted itself and the runner gave up. The notes compare both runs.
 
@@ -149,7 +166,9 @@ The `fake` files in `results/` are pipeline tests; they say nothing about how we
 - The recorder's role and name detection is a simplified version of the ARIA rules; it covers standard form controls.
 - A retry after a failed check can repeat an action (checkboxes use `check()` to avoid toggling twice).
 - Only browser tasks on localhost pages.
-- The demo site is a small fake invoice app with five layouts; real sites will change in more ways than these.
+- The demo site is a small fake invoice app with eight layouts; real sites will change in more ways than these.
+- 29 repairs on one demo app are too few for a general success rate. Layouts a, b and e have one run each;
+  layouts f, g and h have 3 runs per task.
 - The report's target box relies on the runner's device scale factor of 1 (1 CSS pixel per screenshot pixel).
 
 ## License
