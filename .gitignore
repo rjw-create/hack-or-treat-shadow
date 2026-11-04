@@ -8,3 +8,5 @@ runs/
 report.html
 # Claude Code instructions: kept on disk for local sessions, not published.
 CLAUDE.md
+# Local Claude Code permissions: kept on disk, not published.
+.claude/settings.json
