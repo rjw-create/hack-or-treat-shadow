@@ -43,12 +43,14 @@ connection or a per-call bill.
 - All model-written text in the report is escaped.
 
 ## Results
-Real runs with `gemma4:e4b` as planner and checker on a laptop CPU, task "export the latest unpaid Acme Corp
-invoice", one run per layout. One run per layout shows the pipeline working end to end; it is not a success rate.
-Source: `results/2026-10-31-gemma-run-notes.md` and the raw run logs it links
-(`results/2026-10-31-140849-gemma-runs.jsonl`, `results/2026-10-31-141134-gemma-runs.jsonl`).
+**30 of 30 tasks succeeded, and 29 of 29 repairs worked on the first try**, across two sets of real runs with
+`gemma4:e4b` as planner and checker on a laptop CPU. These are too few runs for a general success rate (see Limits).
 
 Task success means the runner reported success **and** the page shows the expected end state.
+
+**2026-10-31: layouts a, b and e, one run each.** Task "export the latest unpaid Acme Corp invoice". Source:
+`results/2026-10-31-gemma-run-notes.md` and the raw run logs it links
+(`results/2026-10-31-140849-gemma-runs.jsonl`, `results/2026-10-31-141134-gemma-runs.jsonl`).
 
 | Layout | Page change | Task success | Repair by Gemma 4 | Attempts per task | Mean time per step |
 | --- | --- | --- | --- | --- | --- |
@@ -63,6 +65,22 @@ Task success means the runner reported success **and** the page shows the expect
 - **Time:** 30.2 s per step on average; a whole 5-step task took 2.0 to 2.9 minutes, almost all of it model time.
 - Attempts count every try, retries included; each plan has 5 steps.
 
+**2026-11-03 and 2026-11-04: layouts f, g and h, 3 runs per task and layout.** All three suite tasks
+(`export_invoice`, `export_all_unpaid_acme`, `export_paid_initech`), 27 runs. Source:
+`results/2026-11-03-page-change-run-notes.md` and `results/2026-11-04-remaining-tasks-run-notes.md`, recounted
+from the raw run logs with `results/recount_gemma_runs.py`.
+
+| Layout | Page change | Task success | Repairs that worked on the first try | Mean repair time (model call) |
+| --- | --- | --- | --- | --- |
+| f | Search label renamed "Filter by company" | 9 of 9 | 9 of 9 | 36.5 s |
+| g | Export button moved next to the page title and renamed "Export" | 9 of 9 | 9 of 9 | 31.6 s |
+| h | Status dropdown replaced by radio buttons "All", "Settled", "Outstanding" | 9 of 9 | 9 of 9 | 57.0 s |
+
+- On layout h, Gemma 4 picked the radio button by meaning: "Outstanding" for the two unpaid tasks and "Settled"
+  for the paid task.
+- **Time:** 20.0 s per step on average. The 2026-10-31 runs used a visible browser recording video; these runs
+  were headless, so the per-step times are not strictly comparable.
+
 **Earlier run, before two fixes.** The first real run (same setup, earlier the same day) repaired both page
 changes correctly too, but on layout b the screenshot checker said "not ok" on a correct page while its own
 explanation said the page matched, and two unchanged elements hit a 3 s timeout, so the runner gave up. Core then
@@ -74,10 +92,11 @@ The fake-mode files in `results/` are pipeline tests and are not model results.
 
 ## Limits
 - Only localhost pages, and only the demo invoice app has been tested.
-- One run per layout so far; there is no success rate yet.
-- Every step waits for a model call on a laptop CPU: about 30 s per step on average, so a 5-step task takes 2 to 3
-  minutes.
-- The checker contradicted itself in the first run. The fixes removed that in the re-test, but three runs cannot
+- 29 repairs on one demo app are too few for a general success rate. Layouts a, b and e have one run each;
+  layouts f, g and h have 3 runs per task.
+- Every step waits for a model call on a laptop CPU: 20 to 30 s per step on average, and a 5-step task took 1.1 to
+  3.8 minutes.
+- The checker contradicted itself in the first run. The fixes removed that in the re-test, but 30 runs cannot
   rule it out.
 - The recorder covers standard form controls, not every ARIA pattern.
 
