@@ -1,0 +1,48 @@
+{
+  "mode": "gemma",
+  "note": "Real model run through Ollama.",
+  "models": {
+    "planner": "gemma4:e4b",
+    "checker": "gemma4:e4b"
+  },
+  "code": {
+    "commit": "b355dc8c1ed0f3ed1a09feee0fbf098b0e5fa5bf",
+    "dirty": false
+  },
+  "runs_per_layout": 3,
+  "tasks_filter": [
+    "export_paid_initech"
+  ],
+  "layouts_filter": [
+    "g"
+  ],
+  "raw": "2026-11-04-163152-gemma-runs.jsonl",
+  "overall": {
+    "runs": 3,
+    "task_success_rate": 1,
+    "runner_ok_rate": 1,
+    "repairs_attempted": 3,
+    "repairs_succeeded": 3,
+    "repair_success_rate": 1.0,
+    "plan_steps_per_task": 5,
+    "attempts_per_task": 6,
+    "time_per_step_s": 16.111,
+    "errors": 0
+  },
+  "by_task_layout": [
+    {
+      "task": "export_paid_initech",
+      "layout": "g",
+      "runs": 3,
+      "task_success_rate": 1,
+      "runner_ok_rate": 1,
+      "repairs_attempted": 3,
+      "repairs_succeeded": 3,
+      "repair_success_rate": 1.0,
+      "plan_steps_per_task": 5,
+      "attempts_per_task": 6,
+      "time_per_step_s": 16.111,
+      "errors": 0
+    }
+  ]
+}
